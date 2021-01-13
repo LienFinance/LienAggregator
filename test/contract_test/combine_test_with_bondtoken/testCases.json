@@ -1,0 +1,108 @@
+{
+  "cases": [
+    {
+      "firstTerm": {
+        "inActivePhase": [
+          {
+            "name": "ADD",
+            "userFrom": 0,
+            "value": 1
+          },
+          {
+            "name": "ADD",
+            "userFrom": 1,
+            "value": 1
+          },
+          {
+            "name": "NONE"
+          },
+          {
+            "name": "NONE"
+          },
+          {
+            "name": "NONE"
+          },
+          {
+            "name": "NONE"
+          }
+        ],
+        "bondIndex": 2,
+        "ethBalance": 0,
+        "totalShare": 2,
+        "ethPerToken": 1
+      },
+      "secondTerm": {
+        "inActivePhase": [
+          {
+            "name": "REMOVE",
+            "userFrom": 0,
+            "value": 1
+          },
+          {
+            "name": "ISSUABLE",
+            "bond": {
+              "strikePriceSBT": 200,
+              "strikePriceCall": 400,
+              "Lev2EndPoint": 600
+            }
+          },
+          {
+            "name": "TRANCHE",
+            "ethAmount": 0,
+            "ethPrice": 400,
+            "ethVolatility": 10
+          },
+          {
+            "name": "NONE"
+          },
+          {
+            "name": "NONE"
+          },
+          {
+            "name": "NONE"
+          }
+        ],
+        "bondIndex": 4,
+        "ethBalance": 2,
+        "totalShare": 1,
+        "ethPerToken": 1
+      },
+      "thirdTerm": {
+        "inActivePhase": [
+          {
+            "name": "ADD",
+            "userFrom": 1,
+            "value": 1
+          },
+          {
+            "name": "ISSUABLE",
+            "bond": {
+              "strikePriceSBT": 200,
+              "strikePriceCall": 400,
+              "Lev2EndPoint": 600
+            }
+          },
+          {
+            "name": "TRANCHE",
+            "ethAmount": 0,
+            "ethPrice": 400,
+            "ethVolatility": 10
+          },
+          {
+            "name": "NONE"
+          },
+          {
+            "name": "NONE"
+          },
+          {
+            "name": "NONE"
+          }
+        ],
+        "bondIndex": 6,
+        "ethBalance": 1,
+        "totalShare": 2,
+        "ethPerToken": 1
+      }
+    }
+  ]
+}
