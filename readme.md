@@ -86,3 +86,11 @@ or
 ```yarn test:combine```
 - Combine test with bondtoken contract and GDOTC contract (You can't use this command because BondToken and GDOTC repository which this aggregator uses is not published)
 ```yarn test:combine:bondtoken```
+
+# Target contracts
+- contracts/SimpleAggregator/ReserveERC20.sol
+- contracts/SimpleAggregator/ReserveETH.sol
+- contracts/SimpleAggregator/SimpleAggregator.sol
+- contracts/SimpleAggregator/SimpleAggregatorCollateralizedERC20.sol
+- contracts/SimpleAggregator/SimpleAggregatorCollateralizedEth.sol
+- contracts/Strategy/StrategyForSimpleAggregator.sol
