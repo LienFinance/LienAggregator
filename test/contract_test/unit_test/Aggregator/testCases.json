@@ -7,75 +7,26 @@
         "TS": 2,
         "EPT": 1,
         "LP1_A": 1,
-        "LP2_A": 1
+        "LP2_A": 1,
+        "changeLiquidity": 0
       },
       "secondStage": {
-        "LP1": -1,
-        "LP2": 0,
-        "TS": 1,
-        "EPT": 1,
-        "LP1_A": 0,
-        "LP2_A": 1
-      },
-      "thirdStage": {
         "LP1": 0,
-        "LP2": 1,
+        "LP2": 0,
         "TS": 2,
-        "EPT": 1,
-        "LP1_A": 0,
-        "LP2_A": 2
-      }
-    },
-    {
-      "firstStage": {
-        "LP1": 1,
-        "LP2": 0,
-        "TS": 1,
-        "EPT": 1,
+        "EPT": 1.1,
         "LP1_A": 1,
-        "LP2_A": 0
-      },
-      "secondStage": {
-        "LP1": 0,
-        "LP2": 0,
-        "TS": 1,
-        "EPT": 1,
-        "LP1_A": 1,
-        "LP2_A": 0
+        "LP2_A": 1,
+        "changeLiquidity": 0.2
       },
       "thirdStage": {
         "LP1": 0,
-        "LP2": 1,
+        "LP2": 0,
         "TS": 2,
-        "EPT": 1,
+        "EPT": 1.1,
         "LP1_A": 1,
-        "LP2_A": 1
-      }
-    },
-    {
-      "firstStage": {
-        "LP1": 0,
-        "LP2": 0,
-        "TS": 0,
-        "EPT": 0,
-        "LP1_A": 0,
-        "LP2_A": 0
-      },
-      "secondStage": {
-        "LP1": 0,
-        "LP2": 1,
-        "TS": 1,
-        "EPT": 1,
-        "LP1_A": 0,
-        "LP2_A": 1
-      },
-      "thirdStage": {
-        "LP1": 0,
-        "LP2": 0,
-        "TS": 1,
-        "EPT": 1,
-        "LP1_A": 1,
-        "LP2_A": 0
+        "LP2_A": 1,
+        "changeLiquidity": 0
       }
     },
     {
@@ -85,49 +36,113 @@
         "TS": 2,
         "EPT": 1,
         "LP1_A": 1,
-        "LP2_A": 1
+        "LP2_A": 1,
+        "changeLiquidity": 0
       },
       "secondStage": {
         "LP1": 0,
         "LP2": 0,
         "TS": 2,
-        "EPT": 1,
+        "EPT": 1.1,
         "LP1_A": 1,
-        "LP2_A": 1
+        "LP2_A": 1,
+        "changeLiquidity": 0.2
       },
       "thirdStage": {
-        "LP1": -1,
+        "LP1": 1.1,
         "LP2": 0,
-        "TS": 1,
-        "EPT": 1,
-        "LP1_A": 0,
-        "LP2_A": 1
-      }
-    },
-    {
-      "firstStage": {
-        "LP1": 1,
-        "LP2": 1,
-        "TS": 2,
-        "EPT": 1,
-        "LP1_A": 1,
-        "LP2_A": 1
-      },
-      "secondStage": {
-        "LP1": 0,
-        "LP2": 0,
-        "TS": 2,
-        "EPT": 1,
-        "LP1_A": 1,
-        "LP2_A": 1
-      },
-      "thirdStage": {
-        "LP1": 1,
-        "LP2": 1,
-        "TS": 4,
-        "EPT": 1,
+        "TS": 3,
+        "EPT": 1.1,
         "LP1_A": 2,
-        "LP2_A": 2
+        "LP2_A": 1,
+        "changeLiquidity": 0
+      }
+    },
+    {
+      "firstStage": {
+        "LP1": 1,
+        "LP2": 1,
+        "TS": 2,
+        "EPT": 1,
+        "LP1_A": 1,
+        "LP2_A": 1,
+        "changeLiquidity": 0
+      },
+      "secondStage": {
+        "LP1": 0,
+        "LP2": 0,
+        "TS": 2,
+        "EPT": 1.1,
+        "LP1_A": 1,
+        "LP2_A": 1,
+        "changeLiquidity": 0.2
+      },
+      "thirdStage": {
+        "LP1": -1,
+        "LP2": 0,
+        "TS": 1,
+        "EPT": 1.1,
+        "LP1_A": 0,
+        "LP2_A": 1,
+        "changeLiquidity": 0
+      }
+    },
+    {
+      "firstStage": {
+        "LP1": 1,
+        "LP2": 1,
+        "TS": 2,
+        "EPT": 1,
+        "LP1_A": 1,
+        "LP2_A": 1,
+        "changeLiquidity": 0
+      },
+      "secondStage": {
+        "LP1": 0,
+        "LP2": 0,
+        "TS": 2,
+        "EPT": 0.9,
+        "LP1_A": 1,
+        "LP2_A": 1,
+        "changeLiquidity": -0.2
+      },
+      "thirdStage": {
+        "LP1": 0.9,
+        "LP2": 0,
+        "TS": 3,
+        "EPT": 0.9,
+        "LP1_A": 2,
+        "LP2_A": 1,
+        "changeLiquidity": 0
+      }
+    },
+    {
+      "firstStage": {
+        "LP1": 1,
+        "LP2": 1,
+        "TS": 2,
+        "EPT": 1,
+        "LP1_A": 1,
+        "LP2_A": 1,
+        "changeLiquidity": 0
+      },
+      "secondStage": {
+        "LP1": 0,
+        "LP2": 0,
+        "TS": 2,
+        "EPT": 0.9,
+        "LP1_A": 1,
+        "LP2_A": 1,
+        "changeLiquidity": -0.2
+      },
+      "thirdStage": {
+        "LP1": -0.5,
+        "LP2": 0,
+        "TS": 1.5,
+        "EPT": 0.9,
+        "LP1_A": 0.5,
+        "LP2_A": 1,
+        "changeLiquidity": 0
       }
     }
   ]

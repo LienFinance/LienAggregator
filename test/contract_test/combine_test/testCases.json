@@ -1,0 +1,273 @@
+{
+    "cases": [
+        {
+            "title": "Simple Tranche",
+            "orders": [
+                {
+                    "name": "tranche",
+                    "price": 400
+                },
+                {
+                    "name": "none"
+                }
+            ],
+            "bondCheck": [
+                {
+                    "bondNumber": [2, 3],
+                    "amount": 0.2
+                },
+                {
+                    "bondNumber": [2, 3],
+                    "amount": 0.2
+                }
+            ],
+
+            "collateralAmount": 0.9996,
+            "collateralAmountERC20": 0.99959999,
+            "ethPerToken": 1,
+            "currentFeeBase": 250,
+            "CPT_ERC20": 99959999,
+            "CPT_ETH": 99960000
+        },
+        {
+            "title": "Tranche twice at the same price",
+            "orders": [
+                {
+                    "name": "tranche",
+                    "price": 400
+                },
+                {
+                    "name": "tranche",
+                    "price": 400
+                }
+            ],
+            "bondCheck": [
+                {
+                    "bondNumber": [2, 3],
+                    "amount": 0.2
+                },
+                {
+                    "bondNumber": [2, 3],
+                    "amount": 0.2
+                }
+            ],
+
+            "collateralAmount": 0.9996,
+            "collateralAmountERC20": 0.99959999,
+            "ethPerToken": 1,
+            "currentFeeBase": 250,
+            "CPT_ERC20": 99959999,
+            "CPT_ETH": 99960000
+        },
+        {
+            "title": "Tranche => Sell token to aggregator",
+            "orders": [
+                {
+                    "name": "tranche",
+                    "price": 400
+                },
+                {
+                    "name": "exchange",
+                    "isBuy": false,
+                    "bondNumber": [1, 1],
+                    "bondAmount": 0.1,
+                    "collateralAmount": 0.25
+                }
+            ],
+            "bondCheck": [
+                {
+                    "bondNumber": [2, 3],
+                    "amount": 0.2
+                },
+                {
+                    "bondNumber": [2, 3],
+                    "amount": 0.2
+                }
+            ],
+
+            "collateralAmount": 0.7996,
+            "collateralAmountERC20": 0.84959967,
+            "ethPerToken": 1,
+            "currentFeeBase": 350,
+            "CPT_ERC20": 84959967,
+            "CPT_ETH": 79960000
+        },
+        {
+            "title": "Tranche => Buy token from aggregator",
+            "orders": [
+                {
+                    "name": "tranche",
+                    "price": 400
+                },
+                {
+                    "name": "exchange",
+                    "isBuy": true,
+                    "bondNumber": [2, 2],
+                    "bondAmount": 0.1,
+                    "collateralAmount": 0.25
+                }
+            ],
+            "bondCheck_ETH": [
+                {
+                    "bondNumber": [2, 3],
+                    "amount": 0.2
+                },
+                {
+                    "bondNumber": [2, 3],
+                    "amount": 0.2
+                }
+            ],
+            "bondCheck_ERC20": [
+                {
+                    "bondNumber": [2, 3],
+                    "amount": 0.2
+                },
+                {
+                    "bondNumber": [2, 3],
+                    "amount": 0.2
+                }
+            ],
+
+            "collateralAmount": 1.2246,
+            "collateralAmountERC20": 1.24959968,
+            "ethPerToken": 1,
+            "currentFeeBase": 250,
+            "CPT_ERC20": 124959968,
+            "CPT_ETH": 122460000
+        },
+        {
+            "title": "Tranche twice at $400 => $500",
+            "orders": [
+                {
+                    "name": "tranche",
+                    "price": 400
+                },
+                {
+                    "name": "tranche",
+                    "price": 500
+                }
+            ],
+            "bondCheck_ETH": [
+                {
+                    "bondNumber": [2, 3],
+                    "amount": 0.2
+                },
+                {
+                    "bondNumber": [3, 3],
+                    "amount": 0.17992
+                }
+            ],
+            "bondCheck_ERC20": [
+                {
+                    "bondNumber": [2, 3],
+                    "amount": 0.2
+                },
+                {
+                    "bondNumber": [3, 3],
+                    "amount": 0.19992
+                }
+            ],
+
+            "collateralAmount": 0.99924016,
+            "collateralAmountERC20": 0.99920014,
+            "ethPerToken": 1,
+            "currentFeeBase": 250,
+            "CPT_ERC20": 99920014,
+            "CPT_ETH": 99924016
+        },
+        {
+            "title": "Tranche twice at $400 => $500, Then sell bond",
+            "orders": [
+                {
+                    "name": "tranche",
+                    "price": 400
+                },
+                {
+                    "name": "tranche",
+                    "price": 500
+                },
+                {
+                    "name": "exchange",
+                    "isBuy": false,
+                    "bondNumber": [1, 1],
+                    "bondAmount": 0.1,
+                    "collateralAmount": 0.05
+                }
+            ],
+            "bondCheck_ETH": [
+                {
+                    "bondNumber": [2, 3],
+                    "amount": 0.2
+                },
+                {
+                    "bondNumber": [3, 3],
+                    "amount": 0.17992
+                }
+            ],
+            "bondCheck_ERC20": [
+                {
+                    "bondNumber": [2, 3],
+                    "amount": 0.2
+                },
+                {
+                    "bondNumber": [3, 3],
+                    "amount": 0.19992
+                }
+            ],
+
+            "collateralAmount": 1.00924016,
+            "collateralAmountERC20": 1.04919989,
+            "ethPerToken": 1,
+            "currentFeeBase": 250,
+            "CPT_ERC20": 104919989,
+            "CPT_ETH": 100924016
+        },
+        {
+            "title": "Tranche twice at $400 => $500, then buy Call @$500",
+            "orders": [
+                {
+                    "name": "tranche",
+                    "price": 400
+                },
+                {
+                    "name": "tranche",
+                    "price": 500
+                },
+                {
+                    "name": "exchange",
+                    "isBuy": true,
+                    "bondNumber": [3, 2],
+                    "bondAmount": 0.1,
+                    "collateralAmount": 0.25
+                }
+            ],
+            "bondCheck_ETH": [
+                {
+                    "bondNumber": [2, 3],
+                    "amount": 0.2
+                },
+                {
+                    "bondNumber": [3, 3],
+                    "amount": 0.17992
+                }
+            ],
+            "bondCheck_ERC20": [
+                {
+                    "bondNumber": [2, 3],
+                    "amount": 0.2
+                },
+                {
+                    "bondNumber": [3, 3],
+                    "amount": 0.19992
+                }
+            ],
+
+            "collateralAmount": 1.21924016,
+            "collateralAmountERC20": 1.24919999,
+            "ethPerToken": 1,
+            "currentFeeBase": 250,
+            "CPT_ERC20": 124919999,
+            "CPT_ETH": 121924016
+        }
+    ]
+}

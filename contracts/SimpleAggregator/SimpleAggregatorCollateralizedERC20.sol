@@ -1,58 +1,77 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.7.1;
+pragma experimental ABIEncoderV2;
 
 import "./SimpleAggregator.sol";
-import "../Interfaces/ERC20BondMakerInterface.sol";
-import "../../node_modules/@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
+import "../BondToken_and_GDOTC/bondMaker/BondMakerCollateralizedErc20Interface.sol";
 import "./ReserveERC20.sol";
 
 contract SimpleAggregatorCollateralizedERC20 is SimpleAggregator {
     using SafeMath for uint256;
     using SafeERC20 for ERC20;
     ERC20 collateralToken;
-    int16 decimalGap;
-    ReserveERC20 reserveERC20;
+    int16 immutable decimalGap;
+    ReserveERC20 immutable reserveERC20;
 
     constructor(
-        BondMakerInterface _bondMaker,
         LatestPriceOracleInterface _oracle,
-        BondPricerInterface _pricer,
+        BondPricerWithAcceptableMaturity _pricer,
         SimpleStrategyInterface strategy,
-        address exchangeAddress,
-        int16 _maxSupplyDenumerator,
-        address _collateralAddress,
+        ERC20 _rewardToken,
+        BondRegistratorInterface _registrator,
+        ExchangeInterface exchangeAddress,
+        ERC20 _collateralAddress,
         VolatilityOracleInterface _volOracle,
-        uint32 _priceUnit
+        uint64 _priceUnit,
+        uint64 _firstRewardRate,
+        bool _reverseOracle
     )
         SimpleAggregator(
-            _bondMaker,
             _oracle,
             _pricer,
             strategy,
+            _rewardToken,
+            _registrator,
             exchangeAddress,
-            _maxSupplyDenumerator,
             _priceUnit,
+            _firstRewardRate,
+            _reverseOracle,
             _volOracle
         )
     {
-        collateralToken = ERC20(_collateralAddress);
+        BondMakerInterface _bondMaker = exchangeAddress.bondMakerAddress();
+        collateralToken = _collateralAddress;
         collateralToken.approve(address(_bondMaker), uint256(-1));
-        _setPool(_bondMaker, _volOracle, _pricer, _oracle, _collateralAddress);
+        collateralToken.approve(address(exchangeAddress), uint256(-1));
+        _setPool(
+            _bondMaker,
+            _volOracle,
+            _pricer,
+            _oracle,
+            _collateralAddress,
+            _reverseOracle
+        );
         decimalGap = int16(collateralToken.decimals()) - decimals;
         reserveERC20 = new ReserveERC20(collateralToken);
     }
 
     function _setPool(
-        BondMakerInterface bondMaker,
+        BondMakerInterface _bondMaker,
         VolatilityOracleInterface _volOracle,
         BondPricerInterface _pricer,
         LatestPriceOracleInterface _oracle,
-        address _collateralAddress
+        ERC20 _collateralAddress,
+        bool _reverseOracle
     ) internal {
-        int16 feeBaseE4 = STRATEGY.getCurrentSpread();
+        int16 feeBaseE4 =
+            STRATEGY.getCurrentSpread(
+                msg.sender,
+                address(_oracle),
+                _reverseOracle
+            );
         currentFeeBase = feeBaseE4;
         DOTC.createVsBondPool(
-            bondMaker,
+            _bondMaker,
             _volOracle,
             _pricer,
             _pricer,
@@ -76,81 +95,56 @@ contract SimpleAggregatorCollateralizedERC20 is SimpleAggregator {
         );
     }
 
-    function changeSpread() public {
-        currentFeeBase = STRATEGY.getCurrentSpread();
-
-        require(
-            currentFeeBase <= 1000 && currentFeeBase >= 5,
-            "Invalid  feebase"
-        );
-        bytes32 poolIDTokenSell = DOTC.generateVsErc20PoolID(
-            address(this),
-            address(collateralToken),
-            true
-        );
-        bytes32 poolIDTokenBuy = DOTC.generateVsErc20PoolID(
-            address(this),
-            address(collateralToken),
-            false
+    function changeSpread() public override {
+        currentFeeBase = STRATEGY.getCurrentSpread(
+            OWNER,
+            address(ORACLE),
+            REVERSE_ORACLE
         );
 
-        bytes32 poolIDBond = DOTC.generateVsBondPoolID(
-            address(this),
-            address(bondMaker)
-        );
+        require(currentFeeBase < 1000 && currentFeeBase > 5, "Invalid feebase");
+        bytes32 poolIDTokenSell =
+            DOTC.generateVsErc20PoolID(
+                address(this),
+                address(collateralToken),
+                true
+            );
+        bytes32 poolIDTokenBuy =
+            DOTC.generateVsErc20PoolID(
+                address(this),
+                address(collateralToken),
+                false
+            );
+
+        bytes32 poolIDBond =
+            DOTC.generateVsBondPoolID(address(this), address(BONDMAKER));
 
         DOTC.updateVsErc20Pool(
             poolIDTokenSell,
-            oracle,
-            bondPricer,
+            ORACLE,
+            BOND_PRICER,
             currentFeeBase
         );
 
         DOTC.updateVsErc20Pool(
             poolIDTokenBuy,
-            oracle,
-            bondPricer,
+            ORACLE,
+            BOND_PRICER,
             currentFeeBase
         );
 
         DOTC.updateVsBondPool(
             poolIDBond,
             volOracle,
-            bondPricer,
-            bondPricer,
+            BOND_PRICER,
+            BOND_PRICER,
             currentFeeBase
         );
     }
 
-    function _applyDecimalGap(uint256 amount, bool isDiv)
-        internal
-        view
-        override
-        returns (uint256)
-    {
-        if (isDiv) {
-            if (decimalGap > 0) {
-                return amount.div(10**uint256(decimalGap));
-            } else {
-                return amount.mul(10**uint256(decimalGap * -1));
-            }
-        } else {
-            if (decimalGap > 0) {
-                return amount.mul(10**uint256(decimalGap));
-            } else {
-                return amount.div(10**uint256(decimalGap * -1));
-            }
-        }
-    }
-
-    function _sendTokens(address user, uint256 amount) internal override {
-        reserveERC20.sendAsset(user, amount);
-    }
-
-    function isEthAggregator() external pure override returns (bool) {
-        return false;
-    }
-
+    /**
+     * @notice Receive ERC20 token, then call _addLiquidity
+     */
     function addLiquidity(uint256 amount)
         external
         isSafeSupply
@@ -160,11 +154,18 @@ contract SimpleAggregatorCollateralizedERC20 is SimpleAggregator {
         success = _addLiquidity(amount);
     }
 
-    function _reserveAsset(uint256 reserveAmountRatioE8) internal override {
-        uint256 amount = collateralToken
-            .balanceOf(address(this))
-            .mul(reserveAmountRatioE8)
-            .div(10**decimals);
+    function _sendTokens(address user, uint256 amount) internal override {
+        reserveERC20.sendAsset(user, amount);
+    }
+
+    function _reserveAsset(uint256 collateralPerTokenE8) internal override {
+        uint256 amount =
+            _applyDecimalGap(
+                uint256(totalUnremovedTokens[currentTerm])
+                    .mul(collateralPerTokenE8)
+                    .div(10**decimals),
+                false
+            );
         require(
             collateralToken.transfer(address(reserveERC20), amount),
             "ERROR: RenewMaturity Cannot reserve collateral token"
@@ -175,13 +176,49 @@ contract SimpleAggregatorCollateralizedERC20 is SimpleAggregator {
         internal
         override
     {
-        ERC20BondMakerInterface bm = ERC20BondMakerInterface(
-            address(bondMaker)
+        // ERC20 bond maker has different interface from ETH bond maker
+
+        BondMakerCollateralizedErc20Interface bm =
+            BondMakerCollateralizedErc20Interface(address(BONDMAKER));
+
+        bm.issueNewBonds(
+            bondgroupID,
+            _applyDecimalGap(amount, false).mul(1002).div(1000)
         );
-        bm.issueNewBonds(bondgroupID, _applyDecimalGap(amount, false));
     }
 
-    function _getCollateralAmount() internal view override returns (uint256) {
+    function getCollateralAddress() external view override returns (address) {
+        return address(collateralToken);
+    }
+
+    /**
+     * @dev Fill up decimal gap between collateral token and share token(decimal: 8)
+     */
+    function _applyDecimalGap(uint256 amount, bool isDiv)
+        internal
+        view
+        override
+        returns (uint256)
+    {
+        if (isDiv) {
+            if (decimalGap < 0) {
+                return amount.mul(10**uint256(decimalGap * -1));
+            } else {
+                return amount.div(10**uint256(decimalGap));
+            }
+        } else {
+            if (decimalGap < 0) {
+                return amount.div(10**uint256(decimalGap * -1));
+            } else {
+                return amount.mul(10**uint256(decimalGap));
+            }
+        }
+    }
+
+    /**
+     * @notice Get available collateral amount in this term
+     */
+    function getCollateralAmount() public view override returns (uint256) {
         return
             collateralToken.balanceOf(address(this)).sub(
                 totalReceivedCollateral[currentTerm]
@@ -190,13 +227,6 @@ contract SimpleAggregatorCollateralizedERC20 is SimpleAggregator {
 
     function getCollateralDecimal() external view override returns (int16) {
         return int16(decimalGap + decimals);
-    }
-
-    function getCollateralAmount() external view override returns (uint256) {
-        return
-            collateralToken.balanceOf(address(this)).sub(
-                totalReceivedCollateral[currentTerm]
-            );
     }
 
     function getReserveAddress() external view override returns (address) {

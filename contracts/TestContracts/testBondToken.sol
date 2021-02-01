@@ -1,7 +1,8 @@
-pragma solidity >=0.6.6;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity 0.7.1;
 
 import "../../node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "../utils/TransferETH.sol";
+import "../BondToken_and_GDOTC/util/TransferETH.sol";
 
 contract testBondToken is ERC20, TransferETH {
     constructor() ERC20("TESTTOKEN", "test") {}
@@ -15,7 +16,7 @@ contract testBondToken is ERC20, TransferETH {
         return true;
     }
 
-    function burnAll() external returns (uint256 amount) {
+    function burnAll() external returns (uint256) {
         _burn(msg.sender, balanceOf(msg.sender));
         _transferETH(msg.sender, address(this).balance);
     }
@@ -45,7 +46,7 @@ contract testErc20BondToken is ERC20 {
         return true;
     }
 
-    function burnAll() external returns (uint256 amount) {
+    function burnAll() external returns (uint256) {
         _burn(msg.sender, balanceOf(msg.sender));
         collateral.transfer(msg.sender, collateral.balanceOf(address(this)));
     }

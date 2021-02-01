@@ -61,6 +61,7 @@
       "Lev2Price": 120.8404525
     }
   ],
+
   "validCasesERC20": [
     {
       "ethPrice": 0.0025,
@@ -83,8 +84,16 @@
       "ethVolatility": 80,
       "untilMaturity": 0.1,
       "strikePriceSBT": 0.00125,
-      "strikePriceCall": 0.003,
-      "Lev2EndPoint": 0.00475
+      "strikePriceCall": 0.004,
+      "Lev2EndPoint": 0.00675
+    },
+    {
+      "ethPrice": 0.0025,
+      "ethVolatility": 80,
+      "untilMaturity": 0.1,
+      "strikePriceSBT": 0.004,
+      "strikePriceCall": 0.008,
+      "Lev2EndPoint": 0.012
     },
     {
       "ethPrice": 0.0025,
@@ -92,15 +101,7 @@
       "untilMaturity": 0.1,
       "strikePriceSBT": 0.00125,
       "strikePriceCall": 0.004,
-      "Lev2EndPoint": 0.00674
-    },
-    {
-      "ethPrice": 0.0025,
-      "ethVolatility": 80,
-      "untilMaturity": 0.1,
-      "strikePriceSBT": 0.00125,
-      "strikePriceCall": 0.003,
-      "Lev2EndPoint": 0.00476
+      "Lev2EndPoint": 0.00675
     }
   ],
   "invalidCases": [
@@ -157,7 +158,7 @@
   ],
   "TrancheBondsERC20": [
     {
-      "ethPrice": 0.0025,
+      "ethPrice": 400,
       "ethVolatility": 10,
       "bonds": [
         {
@@ -180,8 +181,11 @@
       "bondGroups": [2, 4, 6],
       "bondGroups_bm": [2, 3, 4],
       "baseAmount": 1000,
+      "issueAmount": 400,
+      "issueBondGroup": 2,
       "ethAmount": 0,
-      "returnedAmounts": ["0", "2", "200", "4", "-1000", "6", "0"]
+      "returnedAmounts": ["4", "1000"],
+      "returnedAmounts_bm": ["3", "1000"]
     }
   ],
   "TrancheBonds": [
@@ -209,8 +213,12 @@
       "bondGroups": [2, 4, 6],
       "bondGroups_bm": [2, 3, 4],
       "baseAmount": 1000,
+      "issueAmount": 400,
+      "issueBondGroup": 2,
+      "issueBondGroup_bm": 2,
       "ethAmount": 0,
-      "returnedAmounts": ["0", "2", "200", "4", "-1000", "6", "0"]
+      "returnedAmounts": ["4", "1000"],
+      "returnedAmounts_bm": ["3", "1000"]
     },
     {
       "ethPrice": 400,
@@ -236,8 +244,12 @@
       "bondGroups": [2, 4, 6],
       "bondGroups_bm": [2, 3, 4],
       "baseAmount": 1000,
+      "issueAmount": 300,
+      "issueBondGroup": 2,
+      "issueBondGroup_bm": 2,
       "ethAmount": 1,
-      "returnedAmounts": ["0.1", "2", "100", "4", "-1000", "6", "0"]
+      "returnedAmounts": ["4", "1000"],
+      "returnedAmounts_bm": ["3", "1000"]
     },
     {
       "ethPrice": 400,
@@ -263,8 +275,12 @@
       "bondGroups": [2, 4, 6],
       "bondGroups_bm": [2, 3, 4],
       "baseAmount": 1000,
+      "issueBondGroup": 2,
+      "issueBondGroup_bm": 2,
+      "issueAmount": 100,
       "ethAmount": 0,
-      "returnedAmounts": ["0", "2", "0", "4", "-1000", "6", "0"]
+      "returnedAmounts": ["4", "1000"],
+      "returnedAmounts_bm": ["3", "1000"]
     },
 
     {
@@ -287,12 +303,16 @@
           "Lev2EndPoint": 620
         }
       ],
-      "amounts": [300, 1000, 0],
+      "amounts": [100, 1000, 500],
       "bondGroups": [2, 4, 6],
       "bondGroups_bm": [2, 3, 4],
       "baseAmount": 1000,
+      "issueBondGroup": 6,
+      "issueBondGroup_bm": 4,
+      "issueAmount": 0,
       "ethAmount": 1,
-      "returnedAmounts": ["0.1", "2", "0", "4", "-1000", "6", "200"]
+      "returnedAmounts": ["4", "1000"],
+      "returnedAmounts_bm": ["3", "1000"]
     },
 
     {
@@ -320,7 +340,11 @@
       "bondGroups_bm": [2, 3, 4],
       "baseAmount": 1000,
       "ethAmount": 1,
-      "returnedAmounts": ["0.1", "2", "0", "4", "-1000", "6", "0"]
+      "issueBondGroup": 2,
+      "issueBondGroup_bm": 2,
+      "issueAmount": 100,
+      "returnedAmounts": ["4", "1000"],
+      "returnedAmounts_bm": ["3", "1000"]
     },
     {
       "ethPrice": 400,
@@ -352,7 +376,11 @@
       "bondGroups_bm": [2, 3, 4],
       "baseAmount": 1000,
       "ethAmount": 1,
-      "returnedAmounts": ["0.1", "2", "0", "4", "-1000", "6", "200", "8", "0"]
+      "issueBondGroup": 6,
+      "issueBondGroup_bm": 4,
+      "issueAmount": 400,
+      "returnedAmounts": ["4", "1000"],
+      "returnedAmounts_bm": ["3", "1000"]
     }
   ]
 }

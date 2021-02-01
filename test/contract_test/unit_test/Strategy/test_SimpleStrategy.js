@@ -8,124 +8,12 @@ const ethAmount = web3.utils.toWei("0.1", "ether");
 const BigNumber = require("bignumber.js");
 const eth = web3.utils.toWei("1", "ether");
 const Exchange = artifacts.require("TestExchange");
-const {time, expectRevert} = require("@openzeppelin/test-helpers");
+const { time, expectRevert } = require("@openzeppelin/test-helpers");
 const fs = require("fs");
 const currentPrice = 40000000000;
 const ethVolatility = 10000000;
 const priceUnit = 1000000000;
-async function calcMaturity() {
-  const block = await web3.eth.getBlock("latest");
-  const timestamp = block.timestamp;
-  const weeks = Math.floor(timestamp / 608000);
-  return (Number(weeks) + 3) * 608000 + 144000;
-}
-async function registerBondGroup(testCase, maturity, bondMakerInstance) {
-  const priceMultiplyer = 10 ** 8;
-  const maxProfitVolShort = Math.floor(
-    ((testCase.strikePriceCall - testCase.strikePriceSBT) *
-      (testCase.strikePriceCall - testCase.Lev2EndPoint)) /
-      (testCase.strikePriceSBT - testCase.Lev2EndPoint)
-  );
-  let receipt = await bondMakerInstance.resisterFnMap([
-    0,
-    0,
-    testCase.strikePriceSBT * priceMultiplyer,
-    testCase.strikePriceSBT * priceMultiplyer,
-    testCase.strikePriceSBT * priceMultiplyer,
-    testCase.strikePriceSBT * priceMultiplyer,
-    testCase.strikePriceSBT * priceMultiplyer * 2,
-    testCase.strikePriceSBT * priceMultiplyer,
-  ]);
-  const SBTFnMapID = receipt.logs[0].args.fnMapID;
-
-  receipt = await bondMakerInstance.resisterFnMap([
-    0,
-    0,
-    testCase.strikePriceCall * priceMultiplyer,
-    0,
-    testCase.strikePriceCall * priceMultiplyer,
-    0,
-    testCase.strikePriceCall * priceMultiplyer * 2,
-    testCase.strikePriceCall * priceMultiplyer,
-  ]);
-  const LBTFnMapID = receipt.logs[0].args.fnMapID;
-  receipt = await bondMakerInstance.resisterFnMap([
-    0,
-    0,
-    testCase.strikePriceSBT * priceMultiplyer,
-    0,
-
-    testCase.strikePriceSBT * priceMultiplyer,
-    0,
-    testCase.Lev2EndPoint * priceMultiplyer,
-    testCase.strikePriceCall * priceMultiplyer -
-      testCase.strikePriceSBT * priceMultiplyer,
-
-    testCase.Lev2EndPoint * priceMultiplyer,
-    testCase.strikePriceCall * priceMultiplyer -
-      testCase.strikePriceSBT * priceMultiplyer,
-    testCase.Lev2EndPoint * priceMultiplyer * 2,
-    testCase.strikePriceCall * priceMultiplyer -
-      testCase.strikePriceSBT * priceMultiplyer,
-  ]);
-  const Lev2FnMapID = receipt.logs[0].args.fnMapID;
-  receipt = await bondMakerInstance.resisterFnMap([
-    0,
-    0,
-    testCase.strikePriceSBT * priceMultiplyer,
-    0,
-    testCase.strikePriceSBT * priceMultiplyer,
-    0,
-    testCase.strikePriceCall * priceMultiplyer,
-    maxProfitVolShort * priceMultiplyer,
-    testCase.strikePriceCall * priceMultiplyer,
-    maxProfitVolShort * priceMultiplyer,
-    testCase.Lev2EndPoint * priceMultiplyer,
-    0,
-    testCase.Lev2EndPoint * priceMultiplyer,
-    0,
-    testCase.Lev2EndPoint * priceMultiplyer * 2,
-    0,
-  ]);
-  const VolSFnMapID = receipt.logs[0].args.fnMapID;
-  await bondMakerInstance.registerBondPair2(
-    maturity,
-    testCase.strikePriceSBT * priceMultiplyer,
-    [SBTFnMapID, LBTFnMapID, Lev2FnMapID, VolSFnMapID]
-  );
-  return {SBTFnMapID, LBTFnMapID, Lev2FnMapID, VolSFnMapID};
-}
-async function registerTrancheBonds(
-  testCase,
-  maturity,
-  bondMakerInstance,
-  oracleInstance,
-  aggregatorInstance
-) {
-  await oracleInstance.changePriceAndVolatility(
-    testCase.ethPrice * 10 ** 8,
-    testCase.ethVolatility * 10 ** 6
-  );
-  for (let i = 0; i < testCase.bonds.length; i++) {
-    await registerBondGroup(testCase.bonds[i], maturity, bondMakerInstance);
-    const bondgroupInfo = await bondMakerInstance.getBondGroup((i + 1) * 2);
-    let bondInfo = await bondMakerInstance.getBond(bondgroupInfo[0][0]);
-    let bond = await BT.at(bondInfo[0]);
-    await bond.mint(aggregatorInstance.address, testCase.amounts[i]);
-    bondInfo = await bondMakerInstance.getBond(bondgroupInfo[0][1]);
-    bond = await BT.at(bondInfo[0]);
-    await bond.mint(aggregatorInstance.address, testCase.amounts[i]);
-    bondInfo = await bondMakerInstance.getBond(bondgroupInfo[0][2]);
-    bond = await BT.at(bondInfo[0]);
-    await bond.mint(aggregatorInstance.address, testCase.amounts[i]);
-    bondInfo = await bondMakerInstance.getBond(bondgroupInfo[0][3]);
-    bond = await BT.at(bondInfo[0]);
-    // console.log(testCase.amounts[i]);
-    await bond.mint(aggregatorInstance.address, testCase.amounts[i]);
-  }
-
-  await aggregatorInstance.changeData(true, testCase.baseAmount * 10 ** 10, 18);
-}
+const setBonds = require("../../../utils/setBond.js");
 
 contract("Strategy", function (accounts) {
   let oracleInstance;
@@ -135,13 +23,13 @@ contract("Strategy", function (accounts) {
   const inputFile = "test/contract_test/unit_test/Strategy/testCases.json";
   const data = JSON.parse(fs.readFileSync(inputFile, "utf8"));
   beforeEach(async function () {
-    exchangeInstance = await Exchange.new();
     oracleInstance = await Oracle.new();
     aggregatorInstance = await Aggregator.new();
     bondMakerInstance = await BondMaker.new();
+    exchangeInstance = await Exchange.new(bondMakerInstance.address);
     strategyInstance = await Strategy.new(
       exchangeInstance.address,
-      608000,
+      604800,
       144000
     );
   });
@@ -174,9 +62,133 @@ contract("Strategy", function (accounts) {
     });
   });
 
+  describe("calcRoundPrice", function () {
+    it("#1", async function () {
+      const ans = await strategyInstance.calcRoundPrice(
+        414 * 10 ** 8,
+        10 ** 9,
+        1
+      );
+      assert.equal(
+        ans.toString(),
+        "41000000000",
+        "expect $400 but returned: " + ans.toString()
+      );
+    });
+    it("#2", async function () {
+      const ans = await strategyInstance.calcRoundPrice(
+        814 * 10 ** 8,
+        25 * 10 ** 8,
+        1
+      );
+      assert.equal(
+        ans.toString(),
+        "80000000000",
+        "expect $800 but returned: " + ans.toString()
+      );
+    });
+    it("#3", async function () {
+      const ans = await strategyInstance.calcRoundPrice(
+        414 * 10 ** 8,
+        10 ** 9,
+        2
+      );
+      assert.equal(
+        ans.toString(),
+        "20000000000",
+        "expect $200 but returned: " + ans.toString()
+      );
+    });
+    it("#4", async function () {
+      const ans = await strategyInstance.calcRoundPrice(
+        814 * 10 ** 8,
+        25 * 10 ** 8,
+        2
+      );
+      assert.equal(
+        ans.toString(),
+        "40000000000",
+        "expect $400 but returned: " + ans.toString()
+      );
+    });
+  });
+
+  describe("reversed value", function () {
+    it("if non reversed oracle", async function () {
+      const ans = await strategyInstance.getReversedValue(400 * 10 ** 8, false);
+      assert.equal(
+        ans.toString(),
+        "40000000000",
+        "expect $400 but returned: " + ans.toString()
+      );
+    });
+    it("if reversed oracle", async function () {
+      const ans = await strategyInstance.getReversedValue(400 * 10 ** 8, true);
+      assert.equal(
+        ans.toString(),
+        "250000",
+        "expect 250000 but returned: " + ans.toString()
+      );
+    });
+  });
+
+  describe("calcCallStrikePrice", function () {
+    it("price unit $10, non reversed oracle", async function () {
+      const ans = await strategyInstance.calcCallStrikePrice(
+        412 * 10 ** 8,
+        10 ** 9,
+        false
+      );
+      assert.equal(
+        ans.toString(),
+        "41000000000",
+        "expect $400 but returned: " + ans.toString()
+      );
+    });
+
+    it("price unit $25, non reversed oracle", async function () {
+      const ans = await strategyInstance.calcCallStrikePrice(
+        837 * 10 ** 8,
+        25 * 10 ** 8,
+        false
+      );
+      assert.equal(
+        ans.toString(),
+        "82500000000",
+        "expect $825 but returned: " + ans.toString()
+      );
+    });
+
+    it("price unit $10, reversed oracle", async function () {
+      const ans = await strategyInstance.calcCallStrikePrice(
+        402 * 10 ** 8,
+        10 ** 9,
+        true
+      );
+      assert.equal(
+        ans.toString(),
+        "250000",
+        "expect 250000 but returned: " + ans.toString()
+      );
+    });
+
+    it("price unit $25, reversed oracle", async function () {
+      const ans = await strategyInstance.calcCallStrikePrice(
+        837 * 10 ** 8,
+        25 * 10 ** 8,
+        true
+      );
+      assert.equal(
+        ans.toString(),
+        "121212",
+        "expect 121212 but returned: " + ans.toString()
+      );
+    });
+  });
+
   describe("getBaseAmount", function () {
     it("Vs ETH", async function () {
-      await aggregatorInstance.changeData(true, eth, 18);
+      await aggregatorInstance.changeData(ZAddress, eth, 18);
       const ans = await strategyInstance.getBaseAmount(
         aggregatorInstance.address
       );
@@ -187,7 +199,11 @@ contract("Strategy", function (accounts) {
       );
     });
     it("Vs USDC", async function () {
-      await aggregatorInstance.changeData(false, 10 ** 6, 6);
+      await aggregatorInstance.changeData(
+        aggregatorInstance.address,
+        10 ** 6,
+        6
+      );
       const ans = await strategyInstance.getBaseAmount(
         aggregatorInstance.address
       );
@@ -198,7 +214,11 @@ contract("Strategy", function (accounts) {
       );
     });
     it("Vs LIEN", async function () {
-      await aggregatorInstance.changeData(false, 10 ** 8, 8);
+      await aggregatorInstance.changeData(
+        aggregatorInstance.address,
+        10 ** 8,
+        8
+      );
       const ans = await strategyInstance.getBaseAmount(
         aggregatorInstance.address
       );
@@ -213,12 +233,13 @@ contract("Strategy", function (accounts) {
   describe("getLBTStrikePrice", function () {
     for (let i = 0; i < data.validCases.length; i++) {
       it("get Call Option Price", async function () {
-        const maturity = await calcMaturity();
+        const maturity = await setBonds.calcMaturity();
         const testCase = data.validCases[i];
-        await registerBondGroup(testCase, maturity, bondMakerInstance);
+        await setBonds.registerBondGroup(testCase, maturity, bondMakerInstance);
         const LBTPrice = await strategyInstance.getLBTStrikePrice(
           bondMakerInstance.address,
-          2
+          2,
+          false
         );
         assert.equal(
           Number(LBTPrice[0].toString()),
@@ -229,95 +250,22 @@ contract("Strategy", function (accounts) {
     }
   });
 
-  describe("isValidLBT", function () {
-    for (let i = 0; i < data.validCases.length; i++) {
-      it("valid LBT", async function () {
-        const maturity = await calcMaturity();
-        const testCase = data.validCases[i];
-        await registerBondGroup(testCase, maturity, bondMakerInstance);
-        const isValidLBT = await strategyInstance.isValidLBT(
+  describe("getLBTStrikePrice for ERC20", function () {
+    for (let i = 0; i < data.validCasesERC20.length; i++) {
+      it("get Call Option Price", async function () {
+        const maturity = await setBonds.calcMaturity();
+        const testCase = data.validCasesERC20[i];
+        await setBonds.registerBondGroup(testCase, maturity, bondMakerInstance);
+        const LBTPrice = await strategyInstance.getLBTStrikePrice(
           bondMakerInstance.address,
           2,
-          data.validCases[i].strikePriceCall * 10 ** 8,
-          data.validCases[i].strikePriceSBT * 10 ** 8,
-          maturity,
-          priceUnit
+          true
         );
-        assert(isValidLBT, "This Bond should be valid");
-      });
-      it("Invalid LBT for bond order", async function () {
-        const maturity = await calcMaturity();
-        const testCase = data.validCases[i];
-        const fnMaps = await registerBondGroup(
-          testCase,
-          maturity,
-          bondMakerInstance
+        assert.equal(
+          Number(LBTPrice[0].toString()),
+          Math.floor(1 / data.validCasesERC20[i].strikePriceCall) * 10 ** 8,
+          "Invalid LBT Price Returned: " + LBTPrice[0].toString()
         );
-        await bondMakerInstance.registerBondPair2(
-          maturity,
-          data.validCases[i].strikePriceSBT * 10 ** 8,
-          [
-            fnMaps.SBTFnMapID,
-            fnMaps.LBTFnMapID,
-            fnMaps.VolSFnMapID,
-            fnMaps.Lev2FnMapID,
-          ]
-        );
-        const isValidLBT = await strategyInstance.isValidLBT(
-          bondMakerInstance.address,
-          4,
-          data.validCases[i].strikePriceCall * 10 ** 8,
-          data.validCases[i].strikePriceSBT * 10 ** 8,
-          maturity,
-          priceUnit
-        );
-        assert(!isValidLBT, "This Bond should be invalid");
-      });
-      it("invalid LBT for strike price", async function () {
-        const maturity = await calcMaturity();
-        const testCase = data.validCases[i];
-        await registerBondGroup(testCase, maturity, bondMakerInstance);
-        const isValidLBT = await strategyInstance.isValidLBT(
-          bondMakerInstance.address,
-          2,
-          data.validCases[i].strikePriceCall * 10 ** 8,
-          data.validCases[i].strikePriceSBT * 10 ** 8 + 100000,
-          maturity,
-          priceUnit
-        );
-        assert(!isValidLBT, "This Bond should be invalid");
-      });
-
-      it("invalid LBT for maturity", async function () {
-        const maturity = await calcMaturity();
-        const testCase = data.validCases[i];
-        await registerBondGroup(testCase, maturity, bondMakerInstance);
-        const isValidLBT = await strategyInstance.isValidLBT(
-          bondMakerInstance.address,
-          2,
-          data.validCases[i].strikePriceCall * 10 ** 8,
-          data.validCases[i].strikePriceSBT * 10 ** 8 + 100000,
-          maturity,
-          priceUnit
-        );
-        assert(!isValidLBT, "This Bond should be invalid");
-      });
-    }
-
-    for (let i = 0; i < data.invalidCases.length; i++) {
-      it("invalid LBT", async function () {
-        const maturity = await calcMaturity();
-        const testCase = data.invalidCases[i];
-        await registerBondGroup(testCase, maturity, bondMakerInstance);
-        const isValidLBT = await strategyInstance.isValidLBT(
-          bondMakerInstance.address,
-          2,
-          data.invalidCases[i].strikePriceCall * 10 ** 8,
-          data.invalidCases[i].strikePriceSBT * 10 ** 4,
-          maturity,
-          priceUnit
-        );
-        assert(!isValidLBT, "This Bond should be invalid");
       });
     }
   });
@@ -325,38 +273,364 @@ contract("Strategy", function (accounts) {
   describe("getCurrentStrikePrice", function () {
     it("should return 200 for low volatility", async function () {
       await oracleInstance.changePriceAndVolatility(40000000000, 10000000);
-      const maturity = await calcMaturity();
       const strikePrice = await strategyInstance.getCurrentStrikePrice(
-        maturity,
         currentPrice,
-        ethVolatility,
-        priceUnit
+        priceUnit,
+        false
       );
+
       assert.equal(
         strikePrice.toString(),
         "20000000000",
         "Invalid strike price returned: " + strikePrice.toString()
       );
     });
+
+    it("should return 200 for high volatility", async function () {
+      await oracleInstance.changePriceAndVolatility(40000000000, 500000000);
+      const strikePrice = await strategyInstance.getCurrentStrikePrice(
+        currentPrice,
+        priceUnit,
+        false
+      );
+
+      // console.log(strikePrice.toString());
+
+      assert.equal(
+        strikePrice.toString(),
+        "20000000000",
+        "Invalid strike price returned: " + strikePrice.toString()
+      );
+    });
+
+    it("should return 200 for low volatility", async function () {
+      await oracleInstance.changePriceAndVolatility(40000000000, 10000000);
+      const strikePrice = await strategyInstance.getCurrentStrikePrice(
+        currentPrice,
+        priceUnit,
+        true
+      );
+      //console.log(strikePrice.toString());
+
+      assert.equal(
+        strikePrice.toString(),
+        "125000",
+        "Invalid strike price returned: " + strikePrice.toString()
+      );
+    });
+    it("should return 200 for high volatility", async function () {
+      await oracleInstance.changePriceAndVolatility(40000000000, 500000000);
+      const strikePrice = await strategyInstance.getCurrentStrikePrice(
+        currentPrice,
+        priceUnit,
+        true
+      );
+      // console.log(strikePrice.toString());
+
+      assert.equal(
+        strikePrice.toString(),
+        "125000",
+        "Invalid strike price returned: " + strikePrice.toString()
+      );
+    });
+  });
+
+  describe("getMinBondAmount", function () {
+    let SBTInstance;
+    let CallInstance;
+    let Lev2Instance;
+    let VolShortInstance;
+    beforeEach(async function () {
+      const maturity = await setBonds.calcMaturity();
+      await bondMakerInstance.registerBondPair(maturity, 400 * 10 ** 8);
+      const BGInfo = await bondMakerInstance.getBondGroup(2);
+      const SBTInfo = await bondMakerInstance.getBond(BGInfo[0][0]);
+      SBTInstance = await BT.at(SBTInfo[0]);
+      const CallInfo = await bondMakerInstance.getBond(BGInfo[0][1]);
+      CallInstance = await BT.at(CallInfo[0]);
+      const Lev2Info = await bondMakerInstance.getBond(BGInfo[0][2]);
+      Lev2Instance = await BT.at(Lev2Info[0]);
+      const VolShortInfo = await bondMakerInstance.getBond(BGInfo[0][3]);
+      VolShortInstance = await BT.at(VolShortInfo[0]);
+    });
+    it("Minimum bond is SBT", async () => {
+      await SBTInstance.mint(accounts[1], 90000);
+      await CallInstance.mint(accounts[1], 100000);
+      await Lev2Instance.mint(accounts[1], 100000);
+      await VolShortInstance.mint(accounts[1], 100000);
+      const balance = await strategyInstance.getMinBondAmount(
+        bondMakerInstance.address,
+        2,
+        accounts[1]
+      );
+      assert.equal(
+        balance.toString(),
+        "90000",
+        "Invalid amount returned: " + balance.toString()
+      );
+    });
+    it("Minimum bond is Call", async () => {
+      await SBTInstance.mint(accounts[1], 100000);
+      await CallInstance.mint(accounts[1], 90000);
+      await Lev2Instance.mint(accounts[1], 100000);
+      await VolShortInstance.mint(accounts[1], 100000);
+      const balance = await strategyInstance.getMinBondAmount(
+        bondMakerInstance.address,
+        2,
+        accounts[1]
+      );
+      assert.equal(
+        balance.toString(),
+        "90000",
+        "Invalid amount returned: " + balance.toString()
+      );
+    });
+    it("Minimum bond is Lev", async () => {
+      await SBTInstance.mint(accounts[1], 100000);
+      await CallInstance.mint(accounts[1], 100000);
+      await Lev2Instance.mint(accounts[1], 90000);
+      await VolShortInstance.mint(accounts[1], 100000);
+      const balance = await strategyInstance.getMinBondAmount(
+        bondMakerInstance.address,
+        2,
+        accounts[1]
+      );
+      assert.equal(
+        balance.toString(),
+        "90000",
+        "Invalid amount returned: " + balance.toString()
+      );
+    });
+    it("Minimum bond is VolShort", async () => {
+      await SBTInstance.mint(accounts[1], 100000);
+      await CallInstance.mint(accounts[1], 100000);
+      await Lev2Instance.mint(accounts[1], 100000);
+      await VolShortInstance.mint(accounts[1], 90000);
+      const balance = await strategyInstance.getMinBondAmount(
+        bondMakerInstance.address,
+        2,
+        accounts[1]
+      );
+      assert.equal(
+        balance.toString(),
+        "90000",
+        "Invalid amount returned: " + balance.toString()
+      );
+    });
+  });
+
+  describe("calcNextMaturity", function () {
+    it("check maturity #1", async function () {
+      const correctMaturity = await setBonds.calcMaturity();
+      const calculatedMaturity = await strategyInstance.calcNextMaturity();
+      assert.equal(
+        String(correctMaturity),
+        calculatedMaturity.toString(),
+        "Invalid maturity"
+      );
+    });
+
+    it("check maturity #2", async function () {
+      const correctMaturity = await setBonds.calcMaturity();
+      await time.increaseTo(correctMaturity - 604800 * 2 - 100);
+      const calculatedMaturity = await strategyInstance.calcNextMaturity();
+      assert.equal(
+        String(correctMaturity),
+        calculatedMaturity.toString(),
+        "Invalid maturity"
+      );
+    });
+
+    it("check maturity #3", async function () {
+      const firstMaturity = await setBonds.calcMaturity();
+      await time.increaseTo(firstMaturity + 100);
+      const correctMaturity = await setBonds.calcMaturity();
+      const calculatedMaturity = await strategyInstance.calcNextMaturity();
+      assert.equal(
+        String(correctMaturity),
+        calculatedMaturity.toString(),
+        "Invalid maturity"
+      );
+    });
+  });
+
+  describe("register fee base", function () {
+    let aggregatorID0;
+    let aggregatorID1;
+    beforeEach(async () => {
+      await strategyInstance.registerAggregators(
+        accounts[0],
+        true,
+        [accounts[0]],
+        100,
+        50
+      );
+      await strategyInstance.registerAggregators(
+        accounts[0],
+        false,
+        [accounts[1]],
+        100,
+        50
+      );
+      aggregatorID0 = await strategyInstance.generateAggregatorID(
+        accounts[0],
+        accounts[0],
+        true
+      );
+      aggregatorID1 = await strategyInstance.generateAggregatorID(
+        accounts[0],
+        accounts[0],
+        false
+      );
+    });
+    it("check register aggregator #1", async () => {
+      const accounts0 = await strategyInstance.aggregators(aggregatorID0, 0);
+      assert.equal(accounts0, accounts[0]);
+    });
+    it("check register FeeInfo #1", async () => {
+      const feeInfo = await strategyInstance.getFeeInfo(
+        accounts[0],
+        accounts[0],
+        true
+      );
+      assert.equal(feeInfo[0], "250");
+      assert.equal(feeInfo[1], "100");
+      assert.equal(feeInfo[2], "50");
+    });
+    it("check register aggregator #2", async () => {
+      const accounts1 = await strategyInstance.aggregators(aggregatorID1, 0);
+      assert.equal(accounts1, accounts[1]);
+    });
+    it("check register FeeInfo #2", async () => {
+      const feeInfo = await strategyInstance.getFeeInfo(
+        accounts[0],
+        accounts[0],
+        false
+      );
+      assert.equal(feeInfo[0], "250");
+      assert.equal(feeInfo[1], "100");
+      assert.equal(feeInfo[2], "50");
+    });
+
+    it("register current feebase (upward)", async () => {
+      await strategyInstance.registerCurrentFeeBase(
+        400,
+        105000010,
+        100000000,
+        accounts[0],
+        accounts[0],
+        true
+      );
+      const feeBase = await strategyInstance.getCurrentSpread(
+        accounts[0],
+        accounts[0],
+        true
+      );
+      assert.equal(
+        feeBase.toString(),
+        "500",
+        "invalid feebase returned: " + feeBase.toString()
+      );
+    });
+    it("register current feebase (downward)", async () => {
+      await strategyInstance.registerCurrentFeeBase(
+        550,
+        100000000,
+        105000010,
+        accounts[0],
+        accounts[0],
+        true
+      );
+      const feeBase = await strategyInstance.getCurrentSpread(
+        accounts[0],
+        accounts[0],
+        true
+      );
+      assert.equal(
+        feeBase.toString(),
+        "500",
+        "invalid feebase returned: " + feeBase.toString()
+      );
+    });
+    it("register current feebase if under initial feebase", async () => {
+      await strategyInstance.registerCurrentFeeBase(
+        200,
+        100000000,
+        105000010,
+        accounts[0],
+        accounts[0],
+        true
+      );
+      const feeBase = await strategyInstance.getCurrentSpread(
+        accounts[0],
+        accounts[0],
+        true
+      );
+      assert.equal(
+        feeBase.toString(),
+        "250",
+        "invalid feebase returned: " + feeBase.toString()
+      );
+    });
+    it("register current feebase if over 1000", async () => {
+      await strategyInstance.registerCurrentFeeBase(
+        1000,
+        105000010,
+        100000000,
+        accounts[0],
+        accounts[0],
+        true
+      );
+      const feeBase = await strategyInstance.getCurrentSpread(
+        accounts[0],
+        accounts[0],
+        true
+      );
+      assert.equal(
+        feeBase.toString(),
+        "999",
+        "invalid feebase returned: " + feeBase.toString()
+      );
+    });
+    it("revert for invalid aggregator", async () => {
+      await expectRevert.unspecified(
+        strategyInstance.registerCurrentFeeBase(
+          500,
+          105000010,
+          100000000,
+          accounts[0],
+          accounts[0],
+          false
+        )
+      );
+    });
   });
 
   describe("getTrancheBonds", function () {
-    for (let i = 0; i < data.TrancheBonds.length; i++) {
+    for (let i = 0; i < 6; i++) {
       it("return valid order for tranching bond", async function () {
-        const maturity = await calcMaturity();
-        await registerTrancheBonds(
+        const maturity = await setBonds.calcMaturity();
+        await setBonds.registerTrancheBonds(
           data.TrancheBonds[i],
           maturity,
           bondMakerInstance,
           oracleInstance,
           aggregatorInstance
         );
-        const list = await strategyInstance.getTrancheBonds(
+        const ans = await strategyInstance.getTrancheBonds(
           bondMakerInstance.address,
           aggregatorInstance.address,
+          data.TrancheBonds[i].issueBondGroup,
           currentPrice,
           data.TrancheBonds[i].bondGroups,
-          priceUnit
+          priceUnit,
+          false
+        );
+        const list = ans[2];
+        assert.equal(
+          ans[0].toString(),
+          String(data.TrancheBonds[i].issueAmount),
+          "Invalid Amount returned" + ans[0].toString()
         );
 
         for (let j = 1; j < list.length; j++) {
@@ -374,8 +648,8 @@ contract("Strategy", function (accounts) {
     }
 
     it("return valid order for tranching bond when lev2 token's balance is reduced", async function () {
-      const maturity = await calcMaturity();
-      await registerTrancheBonds(
+      const maturity = await setBonds.calcMaturity();
+      await setBonds.registerTrancheBonds(
         data.TrancheBonds[0],
         maturity,
         bondMakerInstance,
@@ -389,23 +663,107 @@ contract("Strategy", function (accounts) {
         from: accounts[0],
       });
 
-      const list = await strategyInstance.getTrancheBonds(
+      const ans = await strategyInstance.getTrancheBonds(
         bondMakerInstance.address,
         aggregatorInstance.address,
+        data.TrancheBonds[0].issueBondGroup,
         currentPrice,
         data.TrancheBonds[0].bondGroups,
-        priceUnit
+        priceUnit,
+        false
       );
+      const list = ans[2];
 
       const correctAmount =
-        Number(data.TrancheBonds[0].returnedAmounts[4]) + 100;
+        Number(data.TrancheBonds[0].returnedAmounts[1]) - 100;
       assert.equal(
-        list[4].toString(),
+        list[1].toString(),
         String(correctAmount),
         "Invalid Value Expected: " +
           correctAmount +
           " Actual: " +
-          list[2].toString()
+          list[1].toString()
+      );
+    });
+  });
+
+  describe("getTrancheBonds for ERC20", function () {
+    for (let i = 0; i < 1; i++) {
+      it("return valid order for tranching bond", async function () {
+        const maturity = await setBonds.calcMaturity();
+        await setBonds.registerTrancheBonds(
+          data.TrancheBondsERC20[i],
+          maturity,
+          bondMakerInstance,
+          oracleInstance,
+          aggregatorInstance
+        );
+        const ans = await strategyInstance.getTrancheBonds(
+          bondMakerInstance.address,
+          aggregatorInstance.address,
+          data.TrancheBondsERC20[i].issueBondGroup,
+          currentPrice,
+          data.TrancheBondsERC20[i].bondGroups,
+          priceUnit,
+          true
+        );
+        const list = ans[2];
+        assert.equal(
+          ans[0].toString(),
+          String(data.TrancheBondsERC20[i].issueAmount),
+          "Invalid Amount returned" + ans[0].toString()
+        );
+
+        for (let j = 1; j < list.length; j++) {
+          const correctAmount = data.TrancheBondsERC20[i].returnedAmounts[j];
+          assert.equal(
+            list[j].toString(),
+            correctAmount,
+            "Invalid Value Expected: " +
+              correctAmount +
+              " Actual: " +
+              list[j].toString()
+          );
+        }
+      });
+    }
+
+    it("return valid order for tranching bond when lev2 token's balance is reduced", async function () {
+      const maturity = await setBonds.calcMaturity();
+      await setBonds.registerTrancheBonds(
+        data.TrancheBondsERC20[0],
+        maturity,
+        bondMakerInstance,
+        oracleInstance,
+        aggregatorInstance
+      );
+
+      const BGInfo = await bondMakerInstance.getBondGroup(4);
+      const BondInfo = await bondMakerInstance.getBond(BGInfo[0][3]);
+      await aggregatorInstance.transferToken(BondInfo[0], 100, {
+        from: accounts[0],
+      });
+
+      const ans = await strategyInstance.getTrancheBonds(
+        bondMakerInstance.address,
+        aggregatorInstance.address,
+        data.TrancheBondsERC20[0].issueBondGroup,
+        currentPrice,
+        data.TrancheBondsERC20[0].bondGroups,
+        priceUnit,
+        true
+      );
+      const list = ans[2];
+
+      const correctAmount =
+        Number(data.TrancheBondsERC20[0].returnedAmounts[1]) - 100;
+      assert.equal(
+        list[1].toString(),
+        String(correctAmount),
+        "Invalid Value Expected: " +
+          correctAmount +
+          " Actual: " +
+          list[1].toString()
       );
     });
   });

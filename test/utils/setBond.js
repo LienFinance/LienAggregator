@@ -1,6 +1,6 @@
 const BT = artifacts.require("testBondToken");
 const { time } = require("@openzeppelin/test-helpers");
-
+const ZAddress = "0x0000000000000000000000000000000000000000";
 let registerBondGroup2 = async function (
   testCase,
   maturity,
@@ -13,12 +13,16 @@ let registerBondGroup2 = async function (
     (testCase.strikePriceCall - testCase.strikePriceSBT) /
     (testCase.Lev2EndPoint - testCase.strikePriceSBT);
 
-  const maxProfitVolShort = Math.floor(
-    ((testCase.strikePriceCall - testCase.strikePriceSBT) *
-      (testCase.strikePriceCall - testCase.Lev2EndPoint) *
-      priceMultiplyer) /
-      (testCase.strikePriceSBT - testCase.Lev2EndPoint)
+  const Lev2ValueInCallSP = Math.floor(
+    (((testCase.strikePriceCall - testCase.strikePriceSBT) *
+      (testCase.strikePriceCall - testCase.strikePriceSBT)) /
+      (testCase.Lev2EndPoint - testCase.strikePriceSBT)) *
+      priceMultiplyer
   );
+
+  const maxProfitVolShort =
+    (testCase.strikePriceCall - testCase.strikePriceSBT) * priceMultiplyer -
+    Lev2ValueInCallSP;
 
   const CallFnMapID = await generatorInstance.getFnMap([
     0,
@@ -127,18 +131,11 @@ let addIssuable = async function (
   bondIndex
 ) {
   for (let i = 0; i < testCase.bonds.length; i++) {
-    await oracleInstance.changePriceAndVolatility(
-      testCase.bonds[i].strikePriceCall * 10 ** 8,
-      testCase.ethVolatility * 10 ** 6
-    );
+    console.log(i);
     await aggregatorInstance.addIssuableBondGroup(
       bondIndex + i - (testCase.bonds.length - 1)
     );
   }
-  await oracleInstance.changePriceAndVolatility(
-    testCase.ethPrice * 10 ** 8,
-    testCase.ethVolatility * 10 ** 6
-  );
 };
 
 let registerTrancheBonds2 = async function (
@@ -150,6 +147,7 @@ let registerTrancheBonds2 = async function (
   accounts,
   generatorInstance,
   isTrueAggregator,
+  collateralAddress,
   SBTID = undefined
 ) {
   /*
@@ -198,7 +196,7 @@ let registerTrancheBonds2 = async function (
     await addIssuable(testCase, aggregatorInstance, oracleInstance, bondIndex);
   } else {
     await aggregatorInstance.changeData(
-      true,
+      collateralAddress,
       testCase.baseAmount * 10 ** 10,
       18
     );
@@ -244,22 +242,18 @@ let registerTrancheBondsERC20 = async function (
     bondIndex = nextBondIndex.toNumber() - 1;
     SBTID = bondIDs.SBTID;
     if (testCase.amounts[i] > 0) {
-      await bondMakerInstance.issueNewBonds(
-        bondIndex,
-        (testCase.amounts[i] * 10 ** decimal) / 10 ** 8,
-        {
-          from: accounts[1],
-        }
-      );
+      await bondMakerInstance.issueNewBonds(bondIndex, testCase.amounts[i], {
+        from: accounts[0],
+      });
     }
     //if (isTrueAggregator) {
     const bgInfo = await bondMakerInstance.getBondGroup(bondIndex);
     for (let bondID of bgInfo[0]) {
       const bondInfo = await bondMakerInstance.getBond(bondID);
       const bondInstance = await BT.at(bondInfo[0]);
-      const balance = await bondInstance.balanceOf(accounts[1]);
+      const balance = await bondInstance.balanceOf(accounts[0]);
       await bondInstance.transfer(aggregatorInstance.address, balance, {
-        from: accounts[1],
+        from: accounts[0],
       });
       //}
     }
@@ -267,22 +261,21 @@ let registerTrancheBondsERC20 = async function (
   if (isTrueAggregator) {
     await addIssuable(testCase, aggregatorInstance, oracleInstance, bondIndex);
   } else {
-    await aggregatorInstance.changeData(false, testCase.baseAmount, 8);
+    await aggregatorInstance.changeData(
+      collateralInstance.address,
+      testCase.baseAmount,
+      8
+    );
   }
   return SBTID;
 };
 
-let registerBondGroup = async function (testCase, maturity, bondMakerInstance) {
+async function registerBondGroup(testCase, maturity, bondMakerInstance) {
   const priceMultiplyer = 10 ** 8;
   const maxProfitVolShort =
-    ((testCase.strikePriceCall * priceMultiplyer -
-      testCase.strikePriceSBT * priceMultiplyer) *
-      (testCase.strikePriceCall * priceMultiplyer -
-        testCase.Lev2EndPoint * priceMultiplyer)) /
-    (testCase.strikePriceSBT * priceMultiplyer -
-      testCase.Lev2EndPoint * priceMultiplyer) /
-    priceMultiplyer;
-  console.log("max: " + maxProfitVolShort);
+    ((testCase.strikePriceCall - testCase.strikePriceSBT) *
+      (testCase.strikePriceCall - testCase.Lev2EndPoint)) /
+    (testCase.strikePriceSBT - testCase.Lev2EndPoint);
   let receipt = await bondMakerInstance.resisterFnMap([
     0,
     0,
@@ -290,7 +283,7 @@ let registerBondGroup = async function (testCase, maturity, bondMakerInstance) {
     testCase.strikePriceSBT * priceMultiplyer,
     testCase.strikePriceSBT * priceMultiplyer,
     testCase.strikePriceSBT * priceMultiplyer,
-    Math.floor(testCase.strikePriceSBT * priceMultiplyer * 2),
+    testCase.strikePriceSBT * priceMultiplyer * 2,
     testCase.strikePriceSBT * priceMultiplyer,
   ]);
   const SBTFnMapID = receipt.logs[0].args.fnMapID;
@@ -309,54 +302,39 @@ let registerBondGroup = async function (testCase, maturity, bondMakerInstance) {
   receipt = await bondMakerInstance.resisterFnMap([
     0,
     0,
-
     testCase.strikePriceSBT * priceMultiplyer,
     0,
 
     testCase.strikePriceSBT * priceMultiplyer,
     0,
+    testCase.Lev2EndPoint * priceMultiplyer,
+    testCase.strikePriceCall * priceMultiplyer -
+      testCase.strikePriceSBT * priceMultiplyer,
 
-    Math.floor(testCase.Lev2EndPoint * priceMultiplyer),
-    Math.floor(
-      testCase.strikePriceCall * priceMultiplyer -
-        testCase.strikePriceSBT * priceMultiplyer
-    ),
-
-    Math.floor(testCase.Lev2EndPoint * priceMultiplyer),
-    Math.floor(
-      testCase.strikePriceCall * priceMultiplyer -
-        testCase.strikePriceSBT * priceMultiplyer
-    ),
-    Math.floor(testCase.Lev2EndPoint * priceMultiplyer * 2),
-    Math.floor(
-      testCase.strikePriceCall * priceMultiplyer -
-        testCase.strikePriceSBT * priceMultiplyer
-    ),
+    testCase.Lev2EndPoint * priceMultiplyer,
+    testCase.strikePriceCall * priceMultiplyer -
+      testCase.strikePriceSBT * priceMultiplyer,
+    testCase.Lev2EndPoint * priceMultiplyer * 2,
+    testCase.strikePriceCall * priceMultiplyer -
+      testCase.strikePriceSBT * priceMultiplyer,
   ]);
   const Lev2FnMapID = receipt.logs[0].args.fnMapID;
   receipt = await bondMakerInstance.resisterFnMap([
     0,
     0,
-
-    Math.floor(testCase.strikePriceSBT * priceMultiplyer),
+    testCase.strikePriceSBT * priceMultiplyer,
     0,
-
-    Math.floor(testCase.strikePriceSBT * priceMultiplyer),
+    testCase.strikePriceSBT * priceMultiplyer,
     0,
-
-    Math.floor(testCase.strikePriceCall * priceMultiplyer),
-    Math.floor(maxProfitVolShort * priceMultiplyer),
-
     testCase.strikePriceCall * priceMultiplyer,
     Math.floor(maxProfitVolShort * priceMultiplyer),
-
-    Math.floor(testCase.Lev2EndPoint * priceMultiplyer),
+    testCase.strikePriceCall * priceMultiplyer,
+    Math.floor(maxProfitVolShort * priceMultiplyer),
+    testCase.Lev2EndPoint * priceMultiplyer,
     0,
-
-    Math.floor(testCase.Lev2EndPoint * priceMultiplyer),
+    testCase.Lev2EndPoint * priceMultiplyer,
     0,
-
-    Math.floor(testCase.Lev2EndPoint * priceMultiplyer * 2),
+    testCase.Lev2EndPoint * priceMultiplyer * 2,
     0,
   ]);
   const VolSFnMapID = receipt.logs[0].args.fnMapID;
@@ -366,15 +344,13 @@ let registerBondGroup = async function (testCase, maturity, bondMakerInstance) {
     [SBTFnMapID, LBTFnMapID, Lev2FnMapID, VolSFnMapID]
   );
   return { SBTFnMapID, LBTFnMapID, Lev2FnMapID, VolSFnMapID };
-};
-
+}
 async function registerTrancheBonds(
   testCase,
   maturity,
   bondMakerInstance,
   oracleInstance,
-  aggregatorInstance,
-  isTrueAggregator
+  aggregatorInstance
 ) {
   await oracleInstance.changePriceAndVolatility(
     testCase.ethPrice * 10 ** 8,
@@ -386,19 +362,30 @@ async function registerTrancheBonds(
     let bondInfo = await bondMakerInstance.getBond(bondgroupInfo[0][0]);
     let bond = await BT.at(bondInfo[0]);
     await bond.mint(aggregatorInstance.address, testCase.amounts[i]);
-
     bondInfo = await bondMakerInstance.getBond(bondgroupInfo[0][1]);
     bond = await BT.at(bondInfo[0]);
     await bond.mint(aggregatorInstance.address, testCase.amounts[i]);
-
     bondInfo = await bondMakerInstance.getBond(bondgroupInfo[0][2]);
     bond = await BT.at(bondInfo[0]);
     await bond.mint(aggregatorInstance.address, testCase.amounts[i]);
-
     bondInfo = await bondMakerInstance.getBond(bondgroupInfo[0][3]);
     bond = await BT.at(bondInfo[0]);
+    // console.log(testCase.amounts[i]);
     await bond.mint(aggregatorInstance.address, testCase.amounts[i]);
   }
+
+  await aggregatorInstance.changeData(
+    ZAddress,
+    testCase.baseAmount * 10 ** 10,
+    18
+  );
+}
+
+async function calcMaturity() {
+  const block = await web3.eth.getBlock("latest");
+  const timestamp = block.timestamp;
+  const weeks = Math.floor((timestamp - 144000) / 604800);
+  return (Number(weeks) + 3) * 604800 + 144000;
 }
 
 module.exports = {
@@ -407,4 +394,5 @@ module.exports = {
   registerBondGroupForRBM: registerBondGroup2,
   registerTrancheBondsForRBM: registerTrancheBonds2,
   registerTrancheBondsERC20: registerTrancheBondsERC20,
+  calcMaturity: calcMaturity,
 };

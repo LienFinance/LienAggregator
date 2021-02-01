@@ -1,152 +1,107 @@
-pragma solidity >=0.6.6;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity 0.7.1;
 import "../Interfaces/StrategyInterface.sol";
-import "../Interfaces/BondMakerInterface.sol";
+import "../BondToken_and_GDOTC/bondMaker/BondMakerInterface.sol";
 import "../../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract TestStrategy2 is StrategyInterface {
-    int16 spread = 100;
-
-    function isValidBondGroup(
-        BondMakerInterface bm,
-        uint256 bondGroupId,
-        uint256 currentStrikePrice,
-        uint256 nextTimeStamp
-    ) external view override returns (bool) {
-        (bytes32[] memory bondIDs, uint256 maturity) = bm.getBondGroup(
-            bondGroupId
-        );
-        (, , uint256 solidStrikePrice, ) = bm.getBond(bondIDs[0]);
-        require(bondIDs.length == 2, "Invalid bondlength");
-        require(currentStrikePrice == solidStrikePrice, "Invalid strike price");
-        return (bondIDs.length == 2 &&
-            nextTimeStamp == maturity &&
-            currentStrikePrice == solidStrikePrice);
-    }
-
-    function isValidLBT(
-        BondMakerInterface bm,
-        uint256 bondGroupId,
-        uint256 currentPrice,
-        uint256 solidStrikePrice,
-        uint256 maturity
-    ) external view override returns (bool) {
-        (bytes32[] memory bondIDs, uint256 _maturity) = bm.getBondGroup(
-            bondGroupId
-        );
-        (, , uint256 _solidStrikePrice, ) = bm.getBond(bondIDs[0]);
-        return (bondIDs.length == 4 &&
-            maturity == _maturity &&
-            solidStrikePrice == _solidStrikePrice);
-    }
-
-    function getTrancheBonds(
-        BondMakerInterface bm,
-        address aggregatorAddress,
-        uint256 baseBondGroupID,
-        uint256 price,
-        uint256[] calldata bondGroupList
-    ) external view override returns (int256[] memory) {
-        int256[] memory amounts = new int256[](bondGroupList.length * 2 + 1);
-        amounts[0] = int256(aggregatorAddress.balance / 10);
-        if (bondGroupList.length > 0) {
-            (bytes32[] memory baseBondIds, ) = bm.getBondGroup(
-                bondGroupList[0]
-            );
-            (address baseLBT, , , ) = bm.getBond(baseBondIds[1]);
-            uint256 balance = IERC20(baseLBT).balanceOf(aggregatorAddress);
-            for (uint256 i = 0; i < bondGroupList.length; i++) {
-                amounts[(i + 1) * 2 - 1] = int256(bondGroupList[i]);
-                amounts[(i + 1) * 2] = int256(
-                    balance / bondGroupList.length / 2
-                );
-            }
-        }
-        return amounts;
-    }
-
-    function getCurrentStrikePrice(
-        uint256 maturity,
-        uint256 currentPriceE8,
-        uint256 volatilityE8
-    ) external view override returns (uint256) {
-        return 20000000000;
-    }
-
-    function getCurrentSpread() external view override returns (int16) {
-        return spread;
-    }
-
-    function changeSpread(int16 newSpread) public {
-        spread = newSpread;
-    }
-
-    function calcNextMaturity() public view returns (uint256 nextTimeStamp) {
-        uint256 WeekInSec = 608000;
-        uint256 week = block.timestamp / (WeekInSec);
-        nextTimeStamp = ((week + 3) * WeekInSec) + (144000);
-    }
-}
-
 contract MockSimpleStrategy2 is SimpleStrategyInterface {
-    int16 spread = 100;
-
-    function isValidLBT(
-        BondMakerInterface bm,
-        uint256 bondGroupId,
-        uint256 currentPrice,
-        uint256 solidStrikePrice,
-        uint256 maturity,
-        uint32 priceUnit
-    ) external view override returns (bool) {
-        (bytes32[] memory bondIDs, uint256 _maturity) = bm.getBondGroup(
-            bondGroupId
-        );
-        (, , uint256 _solidStrikePrice, ) = bm.getBond(bondIDs[0]);
-        return (bondIDs.length == 4 &&
-            maturity == _maturity &&
-            solidStrikePrice == _solidStrikePrice);
-    }
+    int16 spread = 250;
 
     function getTrancheBonds(
         BondMakerInterface bm,
         address aggregatorAddress,
-        uint256 price,
+        uint256 issueBondGroupId,
+        uint256,
         uint256[] calldata bondGroupList,
-        uint32 priceUnit
-    ) external view override returns (int256[] memory) {
-        int256[] memory amounts = new int256[](bondGroupList.length * 2 + 1);
-        amounts[0] = int256(aggregatorAddress.balance / 10);
+        uint64,
+        bool
+    )
+        external
+        view
+        override
+        returns (
+            uint256 issueAmount,
+            uint256 ethAmount,
+            uint256[2] memory
+        )
+    {
+        ethAmount = aggregatorAddress.balance / 10;
         if (bondGroupList.length > 0) {
-            (bytes32[] memory baseBondIds, ) = bm.getBondGroup(
-                bondGroupList[0]
-            );
+            (bytes32[] memory baseBondIds, ) =
+                bm.getBondGroup(issueBondGroupId);
             (address baseLBT, , , ) = bm.getBond(baseBondIds[1]);
             uint256 balance = IERC20(baseLBT).balanceOf(aggregatorAddress);
-            for (uint256 i = 0; i < bondGroupList.length; i++) {
-                amounts[(i + 1) * 2 - 1] = int256(bondGroupList[i]);
-                amounts[(i + 1) * 2] = int256(
-                    balance / bondGroupList.length / 2
-                );
-            }
+            issueAmount = (aggregatorAddress.balance / 5) - balance;
         }
-        return amounts;
     }
 
     function getCurrentStrikePrice(
-        uint256 maturity,
-        uint256 currentPriceE8,
-        uint256 volatilityE8,
-        uint32 priceUnit
-    ) external view override returns (uint256) {
-        return 20000000000;
+        uint256,
+        uint64,
+        bool isReversedOracle
+    ) external pure override returns (uint256) {
+        if (isReversedOracle) {
+            return 125000;
+        }
+        return 200 * 10**8;
     }
 
-    function getCurrentSpread() external view override returns (int16) {
+    function registerCurrentFeeBase(
+        int16 feeBase,
+        uint256,
+        uint256,
+        address,
+        address,
+        bool
+    ) public override {
+        spread = feeBase;
+    }
+
+    function getCurrentSpread(
+        address,
+        address,
+        bool
+    ) public view override returns (int16) {
         return spread;
     }
 
     function changeSpread(int16 newSpread) public {
         spread = newSpread;
+    }
+
+    function calcCallStrikePrice(
+        uint256 currentPriceE8,
+        uint64 priceUnit,
+        bool isReversedOracle
+    ) external pure override returns (uint256 callStrikePrice) {
+        if (isReversedOracle) {
+            callStrikePrice = _getReversedValue(
+                calcRoundPrice(currentPriceE8, priceUnit, 1),
+                isReversedOracle
+            );
+        } else {
+            callStrikePrice = calcRoundPrice(currentPriceE8, priceUnit, 1);
+        }
+    }
+
+    function calcRoundPrice(
+        uint256 price,
+        uint64 priceUnit,
+        uint8 divisor
+    ) public pure override returns (uint256 roundedPrice) {
+        roundedPrice = (price / (priceUnit * divisor)) * (priceUnit);
+    }
+
+    function _getReversedValue(uint256 value, bool isReversedOracle)
+        internal
+        pure
+        returns (uint256)
+    {
+        if (!isReversedOracle) {
+            return value;
+        } else {
+            return 10**16 / value;
+        }
     }
 
     function calcNextMaturity()
@@ -155,8 +110,8 @@ contract MockSimpleStrategy2 is SimpleStrategyInterface {
         override
         returns (uint256 nextTimeStamp)
     {
-        uint256 WeekInSec = 608000;
-        uint256 week = block.timestamp / (WeekInSec);
+        uint256 WeekInSec = 604800;
+        uint256 week = (block.timestamp - 144000) / (WeekInSec);
         nextTimeStamp = ((week + 3) * WeekInSec) + (144000);
     }
 }

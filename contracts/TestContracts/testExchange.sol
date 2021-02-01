@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.7.1;
-import "../utils/TransferETH.sol";
-import "../Interfaces/BondPricerInterface.sol";
-import "../Interfaces/BondMakerInterface.sol";
-import "../Interfaces/LatestPriceOracleInterface.sol";
+import "../BondToken_and_GDOTC/util/TransferETH.sol";
+import "../BondToken_and_GDOTC/bondPricer/BondPricerInterface.sol";
+import "../BondToken_and_GDOTC/bondMaker/BondMakerInterface.sol";
 import "../Interfaces/VolatilityOracleInterface.sol";
 import "../../node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
@@ -37,6 +36,15 @@ contract TestExchange is TransferETH {
         bool isBondSale;
     }
     mapping(bytes32 => VSERC20Pool) erc20Pools;
+    BondMakerInterface bondMaker;
+
+    constructor(BondMakerInterface _bondMaker) {
+        bondMaker = _bondMaker;
+    }
+
+    function bondMakerAddress() external view returns (BondMakerInterface) {
+        return bondMaker;
+    }
 
     function setAggregator(address AggregatorAddress, int16 spread) public {
         AddressToSpread[AggregatorAddress] = spread;
@@ -54,11 +62,7 @@ contract TestExchange is TransferETH {
         _transferETH(msg.sender, address(this).balance);
     }
 
-    function ethAllowance(address owner)
-        external
-        view
-        returns (uint256 amount)
-    {
+    function ethAllowance(address) external view returns (uint256 amount) {
         return ethDeposits[msg.sender];
     }
 
@@ -68,7 +72,7 @@ contract TestExchange is TransferETH {
 
     function createVsBondPool(
         BondMakerInterface bondMakerForUserAddress,
-        VolatilityOracleInterface volatilityOracleAddress,
+        VolatilityOracleInterface,
         BondPricerInterface bondPricerForUserAddress,
         BondPricerInterface bondPricerAddress,
         int16 feeBaseE4
@@ -122,7 +126,7 @@ contract TestExchange is TransferETH {
 
     function updateVsBondPool(
         bytes32 poolID,
-        VolatilityOracleInterface volatilityOracleAddress,
+        VolatilityOracleInterface,
         BondPricerInterface bondPricerForUserAddress,
         BondPricerInterface bondPricerAddress,
         int16 feeBaseE4
@@ -214,7 +218,7 @@ contract TestExchange is TransferETH {
 
     function generateVsEthPoolID(address seller, bool isBondSale)
         public
-        view
+        pure
         returns (bytes32 poolID)
     {
         return keccak256(abi.encode(seller, 100, isBondSale));
@@ -222,7 +226,7 @@ contract TestExchange is TransferETH {
 
     function generateVsBondPoolID(address seller, address bondMakerForUser)
         public
-        view
+        pure
         returns (bytes32 poolID)
     {
         return keccak256(abi.encode(seller, bondMakerForUser, 100));
@@ -232,7 +236,7 @@ contract TestExchange is TransferETH {
         address seller,
         address swapPairAddress,
         bool isBondSale
-    ) public view returns (bytes32 poolID) {
+    ) public pure returns (bytes32 poolID) {
         return keccak256(abi.encode(seller, swapPairAddress, isBondSale));
     }
 }

@@ -1,0 +1,39 @@
+{
+    "cases": [
+        {
+           "orders": [
+               {
+                   "name": "tranche",
+                   "price": 
+               },
+               {
+                   "name": "exchange",
+                   "isBuy": true,
+                   "bondNumber":[],
+                   "bondAmount":,
+                   "collateralAmount":
+               },
+               {
+                   "name": "none"
+               },
+           ],
+           "bondCheck": [
+               {
+                   "bondNumber": [],
+                   "amount":
+               },
+               {
+                   "bondNumber": [],
+                   "amount":
+               },
+               {
+                   "bondNumber": [],
+                   "amount":
+               }
+           ],
+
+            "collateralAmount":,
+            "ethPerToken":,
+        }
+    ]
+}

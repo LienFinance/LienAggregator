@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.7.1;
 import "./VolatilityOracleInterface.sol";
-import "./BondPricerInterface.sol";
-import "./BondMakerInterface.sol";
-import "./LatestPriceOracleInterface.sol";
+import "../BondToken_and_GDOTC/bondPricer/BondPricerInterface.sol";
+import "../BondToken_and_GDOTC/bondMaker/BondMakerInterface.sol";
 import "../../node_modules/@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 interface ExchangeInterface {
@@ -75,4 +74,6 @@ interface ExchangeInterface {
     function depositEth() external payable;
 
     function ethAllowance(address owner) external view returns (uint256 amount);
+
+    function bondMakerAddress() external view returns (BondMakerInterface);
 }

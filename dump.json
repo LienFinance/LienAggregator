@@ -1,0 +1,62 @@
+{
+  "erc20": {
+    "address": "",
+    "contractName": "ERC20"
+  },
+  "bondToken": {
+    "address": "",
+    "contractName": "BondTokenInterface"
+  },
+  "rewardToken": {
+    "address": "0xed416fED2952F01bB49a00a343bb54193832dd06",
+    "contractName": "testBondToken"
+  },
+  "ethVolatilityOracle": {
+    "address": "0x172A8F4913585DBd714E666CF41f275c73f342A0",
+    "contractName": "testVolatilityOracle"
+  },
+  "ethPriceOracle": {
+    "address": "0xFDe33FC0b2b7490aCb4f2C5062ef1407Ef8D14D6",
+    "contractName": "TestOracle"
+  },
+  "generalizedPricing": {
+    "address": "0x3D955101da45d5AB9D47bFe9D610c6d1E4Aa4d83",
+    "contractName": "GeneralizedPricing"
+  },
+  "bondTokenFactory": {
+    "address": "0x4191d479E33DD37A6db9FBE5933f83f9863B9cAc",
+    "contractName": "BondTokenFactory"
+  },
+  "bondTokenName": {
+    "address": "0x42432a56dEFD06897f9386Abd54A52d4D76E2128",
+    "contractName": "BondTokenName"
+  },
+  "bondShapeDetector": {
+    "address": "0x72426F64d1A97aCcAA6cA5A78Ae44E21fCba9B04",
+    "contractName": "DetectBondShape"
+  },
+  "strategy": {
+    "address": "0x19CE2AD342920De29Fd100EA5194E94A4121bEBD",
+    "contractName": "StrategyForSimpleAggregator"
+  },
+  "bondMakerHelper": {
+    "address": "0x1ba5F5A96f07849a52661237b671E26A394596eF",
+    "contractName": "testBondRegistrator"
+  },
+  "bondPricer": {
+    "address": "0xEB6Cb8cb8a248F0Ad30135409B1507B2C42CD724",
+    "contractName": "BondPricerWithAcceptableMaturity"
+  },
+  "callBondMaker": {
+    "address": "0x79cA80f1871b71B75E66E10a72eA742C3298929e",
+    "contractName": "BondMakerCollateralizedEth"
+  },
+  "callBondExchange": {
+    "address": "0xE6f325CC337c38eE75Ad1CA9Eb27EDD2b0c4Df39",
+    "contractName": "GeneralizedDotc"
+  },
+  "callAggregator": {
+    "address": "0xc8f357060194196F60F656931FD603f04aCF15f9",
+    "contractName": "SimpleAggregatorCollateralizedEth"
+  }
+}

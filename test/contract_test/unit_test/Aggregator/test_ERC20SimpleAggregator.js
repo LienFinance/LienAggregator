@@ -4,9 +4,11 @@ const Reserve = artifacts.require("ReserveERC20");
 const Oracle = artifacts.require("testOracleForAggregator");
 const Strategy = artifacts.require("MockSimpleStrategy2");
 const Exchange = artifacts.require("TestExchange");
-const Pricer = artifacts.require("testGeneralizedPricing");
+const GeneralizedPricing = artifacts.require("GeneralizedPricing");
+const Pricer = artifacts.require("BondPricerWithAcceptableMaturity");
 const VolOracle = artifacts.require("testVolatilityOracle");
 const BT = artifacts.require("testBondToken");
+const Registrator = artifacts.require("testBondRegistrator");
 const ERC20 = artifacts.require("ERC20");
 const BigNumber = require("bignumber.js");
 const { time, expectRevert } = require("@openzeppelin/test-helpers");
@@ -16,6 +18,9 @@ const strikePrice = 20000000000;
 const inf =
   "115792089237316195423570985008687907853269984665640564039457584007913129639935";
 const inf_128 = "340282366920938463463374607431768211455";
+const fs = require("fs");
+const constants = require("../../../utils/constants.js");
+const setBonds = require("../../../utils/setBond.js");
 
 contract("simple aggregator", function (accounts) {
   let oracleInstance;
@@ -27,41 +32,56 @@ contract("simple aggregator", function (accounts) {
   let volOracleInstance;
   let reserveERC20Instance;
   let collateralInstance;
-  async function calcMaturity() {
-    const block = await web3.eth.getBlock("latest");
-    const timestamp = block.timestamp;
-    const weeks = Math.floor(timestamp / 608000);
-    return (Number(weeks) + 3) * 608000 + 144000;
-  }
+  let rewardInstance;
+  let registratorInstance;
   beforeEach(async () => {
     volOracleInstance = await VolOracle.new();
-    exchangeInstance = await Exchange.new();
     oracleInstance = await Oracle.new();
-    pricerInstance = await Pricer.new();
+    const generalizedPricer = await GeneralizedPricing.new();
+    pricerInstance = await Pricer.new(generalizedPricer.address);
     collateralInstance = await BT.new();
+    registratorInstance = await Registrator.new();
+    rewardInstance = await BT.new();
     await collateralInstance.changeDecimal(8);
     await collateralInstance.mint(accounts[0], lot * 10);
+    await collateralInstance.mint(accounts[1], lot * 10);
 
     bondMakerInstance = await BondMaker.new(collateralInstance.address);
+
+    exchangeInstance = await Exchange.new(bondMakerInstance.address);
     strategyInstance = await Strategy.new(bondMakerInstance.address);
     aggregatorInstance = await Aggregator.new(
-      bondMakerInstance.address,
       oracleInstance.address,
       pricerInstance.address,
       strategyInstance.address,
+      rewardInstance.address,
+      registratorInstance.address,
       exchangeInstance.address,
-      8,
       collateralInstance.address,
       volOracleInstance.address,
-      priceUnit
+      priceUnit,
+      10 ** 5,
+      false
     );
+    await pricerInstance.transferOwnership(aggregatorInstance.address);
     reserveERC20Instance = await Reserve.at(
       await aggregatorInstance.getReserveAddress()
     );
     await collateralInstance.approve(aggregatorInstance.address, lot * 10);
+    await collateralInstance.approve(aggregatorInstance.address, lot * 10, {
+      from: accounts[1],
+    });
   });
 
   describe("Launch contract", function () {
+    it("check bond maker contract", async function () {
+      const info = await aggregatorInstance.getInfo();
+      assert.equal(
+        info[0],
+        bondMakerInstance.address,
+        "Invalid bondmaker Address"
+      );
+    });
     describe("check default pool", function () {
       it("check erc20 sell pool", async function () {
         const poolID = await exchangeInstance.generateVsErc20PoolID(
@@ -85,7 +105,7 @@ contract("simple aggregator", function (accounts) {
           collateralInstance.address,
           "Invalid token Address"
         );
-        assert.equal(poolData[3], 100, "Invalid feebase");
+        assert.equal(poolData[3], 250, "Invalid feebase");
         assert(poolData[4], "This pool should be sell");
       });
 
@@ -111,7 +131,7 @@ contract("simple aggregator", function (accounts) {
           collateralInstance.address,
           "Invalid token Address"
         );
-        assert.equal(poolData[3], 100, "Invalid feebase");
+        assert.equal(poolData[3], 250, "Invalid feebase");
         assert(!poolData[4], "This pool should be buy");
       });
       it("check bond pool", async function () {
@@ -135,14 +155,14 @@ contract("simple aggregator", function (accounts) {
           pricerInstance.address,
           "Invalid pricer Address for user"
         );
-        assert.equal(poolData[3], 100, "Invalid feebase");
+        assert.equal(poolData[3], 250, "Invalid feebase");
       });
     });
 
     describe("chenge spread", function () {
       let maturity;
       beforeEach(async () => {
-        maturity = await calcMaturity();
+        maturity = await setBonds.calcMaturity();
         await strategyInstance.changeSpread(50);
         await time.increaseTo(maturity - 70000);
         await aggregatorInstance.changeSpread();
@@ -193,27 +213,221 @@ contract("simple aggregator", function (accounts) {
     });
   });
 
+  describe("Register Bond functions", function () {
+    let SBTBondID;
+    let CallBondID;
+    let Lev2BondID;
+    let VolShortBondID;
+    let maturity;
+    beforeEach(async () => {
+      const generalizedPricer = await GeneralizedPricing.new();
+      pricerInstance = await Pricer.new(generalizedPricer.address);
+      aggregatorInstance = await Aggregator.new(
+        oracleInstance.address,
+        pricerInstance.address,
+        strategyInstance.address,
+        rewardInstance.address,
+        registratorInstance.address,
+        exchangeInstance.address,
+        collateralInstance.address,
+        volOracleInstance.address,
+        priceUnit,
+        10 ** 5,
+        true
+      );
+
+      await pricerInstance.transferOwnership(aggregatorInstance.address);
+      maturity = await setBonds.calcMaturity();
+      SBTBondID = await bondMakerInstance.generateBondIDFromPoint(
+        maturity,
+        constants.sbtPoint_ERC20
+      );
+      CallBondID = await bondMakerInstance.generateBondIDFromPoint(
+        maturity,
+        constants.callPoint_ERC20
+      );
+      Lev2BondID = await bondMakerInstance.generateBondIDFromPoint(
+        maturity,
+        constants.lev2Point_ERC20
+      );
+      VolShortBondID = await bondMakerInstance.generateBondIDFromPoint(
+        maturity,
+        constants.volShortPoint_ERC20
+      );
+    });
+
+    describe("registerBond", function () {
+      it("register SBT", async function () {
+        const receipt = await registratorInstance._registerBond(
+          bondMakerInstance.address,
+          constants.sbtPoint_ERC20,
+          maturity
+        );
+        assert.equal(receipt.logs[0].args.id, SBTBondID, "Invalid SBT ID");
+      });
+      it("register Call", async function () {
+        const receipt = await registratorInstance._registerBond(
+          bondMakerInstance.address,
+          constants.callPoint_ERC20,
+          maturity
+        );
+        assert.equal(receipt.logs[0].args.id, CallBondID, "Invalid Call ID");
+      });
+      it("register Lev2", async function () {
+        const receipt = await registratorInstance._registerBond(
+          bondMakerInstance.address,
+          constants.lev2Point_ERC20,
+          maturity
+        );
+        assert.equal(receipt.logs[0].args.id, Lev2BondID, "Invalid Lev2 ID");
+      });
+      it("register VolShort", async function () {
+        const receipt = await registratorInstance._registerBond(
+          bondMakerInstance.address,
+          constants.volShortPoint_ERC20,
+          maturity
+        );
+        assert.equal(
+          receipt.logs[0].args.id,
+          VolShortBondID,
+          "Invalid VolShort ID"
+        );
+      });
+    });
+    describe("registerSBT", function () {
+      let receipt;
+      beforeEach(async () => {
+        receipt = await registratorInstance._registerSBT(
+          bondMakerInstance.address,
+          constants.sbtSp_ERC20,
+          maturity
+        );
+      });
+      it("check SBT ID", async function () {
+        assert.equal(receipt.logs[0].args.id, SBTBondID, "Invalid SBT ID");
+      });
+      it("check inf approve", async function () {
+        const sbtInfo = await bondMakerInstance.getBond(SBTBondID);
+        const sbt = await ERC20.at(sbtInfo[0]);
+        const bond1Approval = await sbt.allowance(
+          aggregatorInstance.address,
+          exchangeInstance.address
+        );
+        //console.log(bond1Approval.toString());
+      });
+    });
+
+    describe("registerBondGroup", function () {
+      let receipt;
+      let bondIDs;
+      beforeEach(async () => {
+        await aggregatorInstance.updateBondGroupData();
+        receipt = await registratorInstance._registerBondGroup(
+          bondMakerInstance.address,
+          constants.callSp_ERC20,
+          constants.sbtSp_ERC20,
+          maturity,
+          SBTBondID
+        );
+        const BGInfo = await bondMakerInstance.getBondGroup(1);
+        bondIDs = BGInfo[0];
+      });
+      it("check bond group ID", async function () {
+        assert.equal(
+          receipt.logs[0].args.num.toString(),
+          "1",
+          "Invalid bond group id returned: " +
+            receipt.logs[0].args.num.toString()
+        );
+      });
+      it("check Call ID", async function () {
+        assert.equal(bondIDs[1], CallBondID, "Invalid Call ID");
+      });
+      it("check Lev2 ID", async function () {
+        assert.equal(bondIDs[2], Lev2BondID, "Invalid lev2 ID");
+      });
+      it("check Volshort ID", async function () {
+        assert.equal(bondIDs[3], VolShortBondID, "Invalid VolShort ID");
+      });
+    });
+
+    describe("add suitable bond", function () {
+      let bondIDs;
+      beforeEach(async () => {
+        await aggregatorInstance.updateBondGroupData();
+        await aggregatorInstance.addSuitableBondGroup(400 * 10 ** 8);
+        const BGInfo = await bondMakerInstance.getBondGroup(1);
+        bondIDs = BGInfo[0];
+      });
+      it("check Call ID", async function () {
+        assert.equal(bondIDs[1], CallBondID, "Invalid Call ID");
+      });
+      it("check Lev2 ID", async function () {
+        assert.equal(bondIDs[2], Lev2BondID, "Invalid lev2 ID");
+      });
+      it("check Volshort ID", async function () {
+        assert.equal(bondIDs[3], VolShortBondID, "Invalid VolShort ID");
+      });
+      it("check bond group list", async function () {
+        const bondGroupID = await aggregatorInstance.getBondGroupIdFromStrikePrice(
+          1,
+          400 * 10 ** 8
+        );
+        assert.equal(
+          bondGroupID.toString(),
+          "1",
+          "bond group id returned: " + bondGroupID.toString()
+        );
+      });
+    });
+
+    describe("update bond group for SBT registration", function () {
+      beforeEach(async function () {
+        await aggregatorInstance.updateBondGroupData();
+      });
+      it("check SBT ID", async function () {
+        const termInfo = await aggregatorInstance.getTermInfo(1);
+        assert.equal(termInfo[2], SBTBondID, "Invalid SBT ID");
+      });
+    });
+  });
+
   describe("updateBondGroupData", function () {
     let maturity;
     let receipt;
     let bondIDs;
     let info;
+    let termData;
     beforeEach(async () => {
-      maturity = await calcMaturity();
+      maturity = await setBonds.calcMaturity();
       receipt = await aggregatorInstance.updateBondGroupData();
-      info = await aggregatorInstance.getInfo();
+      info = await aggregatorInstance.getCurrentStatus();
+      termInfo = await aggregatorInstance.getTermInfo(0);
     });
     it("check current term", async () => {
-      assert.equal(info[6].toString(), "1", "should increment term");
+      assert.equal(info[0].toString(), "1", "should increment term");
     });
+
     it("check maturity", async () => {
-      assert.equal(info[4].toString(), maturity.toString(), "invalid maturity");
+      assert.equal(
+        termInfo[0].toString(),
+        maturity.toString(),
+        "invalid maturity"
+      );
     });
     it("check strikePrice", async () => {
       assert.equal(
-        info[5].toString(),
+        termInfo[1].toString(),
         strikePrice.toString(),
         "invalid strike price"
+      );
+    });
+    it("check maturity of pricer", async () => {
+      const maturityInPricer = await pricerInstance.getAcceptableMaturity();
+      assert.equal(
+        maturityInPricer.toString(),
+        maturity.toString(),
+        "invalid maturity"
       );
     });
   });
@@ -225,7 +439,9 @@ contract("simple aggregator", function (accounts) {
       });
 
       it("check liquidity data", async () => {
-        const userData = await aggregatorInstance.getReceivedETHs(accounts[0]);
+        const userData = await aggregatorInstance.getLiquidityReservationData(
+          accounts[0]
+        );
         assert.equal(userData[0].toString(), "0", "term should be 0");
         assert.equal(
           userData[1].toString(),
@@ -245,14 +461,16 @@ contract("simple aggregator", function (accounts) {
     describe("for the second term", () => {
       let maturity;
       beforeEach(async () => {
-        maturity = await calcMaturity();
+        maturity = await setBonds.calcMaturity();
         await bondMakerInstance.registerBondPair(maturity, strikePrice);
         await aggregatorInstance.updateBondGroupData();
         await aggregatorInstance.addLiquidity(lot);
       });
 
       it("check liquidity data", async () => {
-        const userData = await aggregatorInstance.getReceivedETHs(accounts[0]);
+        const userData = await aggregatorInstance.getLiquidityReservationData(
+          accounts[0]
+        );
         assert.equal(userData[0].toString(), "1", "term should be 1");
         assert.equal(
           userData[1].toString(),
@@ -279,12 +497,12 @@ contract("simple aggregator", function (accounts) {
       });
 
       it("check liquidity data", async () => {
-        const userData = await aggregatorInstance.getUnremovedTokens(
+        const userData = await aggregatorInstance.getLiquidityReservationData(
           accounts[0]
         );
-        assert.equal(userData[0].toString(), "0", "term should be 0");
+        assert.equal(userData[2].toString(), "0", "term should be 0");
         assert.equal(
-          userData[1].toString(),
+          userData[3].toString(),
           "50000000",
           "Value should be 0.5 token"
         );
@@ -302,7 +520,7 @@ contract("simple aggregator", function (accounts) {
       let maturity;
       beforeEach(async () => {
         await aggregatorInstance.addToken(accounts[0], 100000000);
-        maturity = await calcMaturity();
+        maturity = await setBonds.calcMaturity();
         await bondMakerInstance.registerBondPair(maturity, strikePrice);
         await aggregatorInstance.updateBondGroupData();
         await aggregatorInstance.addLiquidity(lot);
@@ -310,12 +528,12 @@ contract("simple aggregator", function (accounts) {
       });
 
       it("check liquidity data", async () => {
-        const userData = await aggregatorInstance.getUnremovedTokens(
+        const userData = await aggregatorInstance.getLiquidityReservationData(
           accounts[0]
         );
-        assert.equal(userData[0].toString(), "1", "term should be 1");
+        assert.equal(userData[2].toString(), "1", "term should be 1");
         assert.equal(
-          userData[1].toString(),
+          userData[3].toString(),
           "50000000",
           "Value should be 0.5 token"
         );
@@ -330,36 +548,84 @@ contract("simple aggregator", function (accounts) {
       });
     });
   });
-
-  describe("addIssuableBondGroup()", function () {
-    let maturity;
-    beforeEach(async function () {
-      maturity = await calcMaturity();
-      await bondMakerInstance.registerBondPair(maturity, strikePrice);
-      await aggregatorInstance.updateBondGroupData();
+  describe("updatepriceUnits", () => {
+    it("update price unit for $ 500", async () => {
+      await aggregatorInstance.updatePriceUnit(499 * 10 ** 8);
+      const info = await aggregatorInstance.getCurrentStatus();
+      assert.equal(
+        info[3].toString(),
+        "1000000000",
+        "price unit should be $10 but returned: " + info[2].toString()
+      );
     });
+    it("update price unit for $ 600", async () => {
+      await aggregatorInstance.updatePriceUnit(600 * 10 ** 8);
+      const info = await aggregatorInstance.getCurrentStatus();
+      assert.equal(
+        info[3].toString(),
+        "2500000000",
+        "price unit should be $25 but returned: " + info[2].toString()
+      );
+    });
+    it("update price unit for $ 1100", async () => {
+      await aggregatorInstance.updatePriceUnit(1100 * 10 ** 8);
+      const info = await aggregatorInstance.getCurrentStatus();
+      assert.equal(
+        info[3].toString(),
+        "5000000000",
+        "price unit should be $50 but returned: " + info[2].toString()
+      );
+    });
+    it("update price unit for $ 1550", async () => {
+      await aggregatorInstance.updatePriceUnit(1550 * 10 ** 8);
+      const info = await aggregatorInstance.getCurrentStatus();
+      assert.equal(
+        info[3].toString(),
+        "7500000000",
+        "price unit should be $75 but returned: " + info[2].toString()
+      );
+    });
+    it("update price unit for $ 2100", async () => {
+      await aggregatorInstance.updatePriceUnit(2100 * 10 ** 8);
+      const info = await aggregatorInstance.getCurrentStatus();
+      assert.equal(
+        info[3].toString(),
+        "10000000000",
+        "price unit should be $100 but returned: " + info[2].toString()
+      );
+    });
+  });
 
-    it("should revert when invalid bondgroup", async function () {
-      await bondMakerInstance.registerBondPair(maturity + 100000, strikePrice);
-      await expectRevert.unspecified(
-        aggregatorInstance.addIssuableBondGroup(4)
+  describe("addBondGroup", function () {
+    let maturity;
+    beforeEach(async () => {
+      maturity = await setBonds.calcMaturity();
+      await aggregatorInstance.updateBondGroupData();
+      await bondMakerInstance.registerBondPair(maturity, strikePrice);
+      await aggregatorInstance.addBondGroup(2, strikePrice * 2);
+    });
+    it("check bond group is contained", async () => {
+      const bondGroupID = await aggregatorInstance.getBondGroupIdFromStrikePrice(
+        1,
+        strikePrice * 2
+      );
+      assert.equal(
+        bondGroupID.toString(),
+        "2",
+        "bond group id returned: " + bondGroupID.toString()
       );
     });
 
-    it("should revert when aggregator has already the same bondGroup", async function () {
-      await time.increase(400000);
-      await aggregatorInstance.addIssuableBondGroup(2);
-      await expectRevert.unspecified(
-        aggregatorInstance.addIssuableBondGroup(2)
+    it("check bond group list length", async () => {
+      const bondGroupList = await aggregatorInstance.getIssuableBondGroups();
+      assert.equal(
+        bondGroupList.length,
+        1,
+        "invalid bond group list returned: " + bondGroupList
       );
     });
 
     it("check infinity approve", async function () {
-      const inf =
-        "115792089237316195423570985008687907853269984665640564039457584007913129639935";
-
-      await time.increase(400000);
-      await aggregatorInstance.addIssuableBondGroup(2);
       const bondIDs = await bondMakerInstance.getBondGroup(2);
       const bond1Info = await bondMakerInstance.getBond(bondIDs[0][1]);
       const bond1 = await ERC20.at(bond1Info[0]);
@@ -383,19 +649,57 @@ contract("simple aggregator", function (accounts) {
       );
       assert.equal(bond3Approval.toString(), inf, "Invalid Amount approval");
     });
+  });
 
-    it("check issuableBondIDs", async function () {
-      await time.increase(400000);
-      await aggregatorInstance.addIssuableBondGroup(2);
-      const isIssuable = await aggregatorInstance.isIssuableGroupID(2, 1);
-      assert(isIssuable, "This bondgroup should be issuable");
-      const firstIssuableBondGroup = await aggregatorInstance.getIssuableBondGroupIds(
-        0
+  describe("getSuitableBondGroup", function () {
+    let maturity;
+    beforeEach(async () => {
+      maturity = await setBonds.calcMaturity();
+      await aggregatorInstance.updateBondGroupData();
+      await bondMakerInstance.registerBondPair(maturity, strikePrice);
+      await aggregatorInstance.addBondGroup(2, strikePrice * 2);
+    });
+    it("return nearest bond group #1", async function () {
+      const bondGroupID = await aggregatorInstance.getSuitableBondGroup(
+        strikePrice * 2
       );
       assert.equal(
-        firstIssuableBondGroup.toString(),
+        bondGroupID.toString(),
         "2",
-        "BondGroup 2 should be added to issuableBondGroupIds"
+        "bond group id returned: " + bondGroupID.toString()
+      );
+    });
+
+    it("return nearest bond group #2", async function () {
+      const bondGroupID = await aggregatorInstance.getSuitableBondGroup(
+        strikePrice * 2 + 20 * 10 ** 8
+      );
+      assert.equal(
+        bondGroupID.toString(),
+        "2",
+        "bond group id returned: " + bondGroupID.toString()
+      );
+    });
+
+    it("return nearest bond group #3", async function () {
+      const bondGroupID = await aggregatorInstance.getSuitableBondGroup(
+        strikePrice * 2 - 20 * 10 ** 8
+      );
+      assert.equal(
+        bondGroupID.toString(),
+        "2",
+        "bond group id returned: " + bondGroupID.toString()
+      );
+    });
+
+    it("return 0 if no near bond group", async function () {
+      const bondGroupID = await aggregatorInstance.getSuitableBondGroup(
+        strikePrice * 2 + 100 * 10 ** 8
+      );
+      assert.equal(
+        bondGroupID.toString(),
+        "0",
+        "bond group id returned: " + bondGroupID.toString()
       );
     });
   });
@@ -403,7 +707,7 @@ contract("simple aggregator", function (accounts) {
   describe("settleTokens()", function () {
     let maturity;
     beforeEach(async () => {
-      maturity = await calcMaturity();
+      maturity = await setBonds.calcMaturity();
       await bondMakerInstance.registerBondPair(maturity, strikePrice);
       await aggregatorInstance.insertData(
         0,
@@ -417,7 +721,9 @@ contract("simple aggregator", function (accounts) {
       await aggregatorInstance.addLiquidity(lot);
       await aggregatorInstance.updateBondGroupData();
       await aggregatorInstance.settleTokens();
-      const userData = await aggregatorInstance.getReceivedETHs(accounts[0]);
+      const userData = await aggregatorInstance.getLiquidityReservationData(
+        accounts[0]
+      );
       assert.equal(userData[1].toString(), "0", "Should Delete userData");
       const balanceData = await aggregatorInstance.balanceOf(accounts[0]);
       assert.equal(
@@ -441,8 +747,10 @@ contract("simple aggregator", function (accounts) {
 
       await aggregatorInstance.updateBondGroupData();
       await aggregatorInstance.settleTokens();
-      const userData = await aggregatorInstance.getUnremovedTokens(accounts[0]);
-      assert.equal(userData[1].toString(), "0", "Should Delete userData");
+      const userData = await aggregatorInstance.getLiquidityReservationData(
+        accounts[0]
+      );
+      assert.equal(userData[3].toString(), "0", "Should Delete userData");
       const balance = await collateralInstance.balanceOf(
         aggregatorInstance.address
       );
@@ -483,7 +791,7 @@ contract("simple aggregator", function (accounts) {
     let BT14;
     let maturity;
     beforeEach(async function () {
-      maturity = await calcMaturity();
+      maturity = await setBonds.calcMaturity();
       await bondMakerInstance.registerBondPair(maturity - 10, strikePrice);
 
       const BG0Info = await bondMakerInstance.getBondGroup(1);
@@ -556,8 +864,8 @@ contract("simple aggregator", function (accounts) {
     it("check isLiquidated", async () => {
       await time.increase(4000000);
       const receipt = await aggregatorInstance.liquidateBonds();
-      const isLiquidated = await aggregatorInstance.getIsLiquidated(1);
-      assert(isLiquidated, "should complete liquidation bonds");
+      const isLiquidated = await aggregatorInstance.getLiquidationData(1);
+      assert(isLiquidated[0], "should complete liquidation bonds");
     });
 
     describe("should not complete liquidation if bonds are more than 10", function () {
@@ -577,17 +885,19 @@ contract("simple aggregator", function (accounts) {
       });
 
       it("check isLiquidated", async () => {
-        const isLiquidated = await aggregatorInstance.getIsLiquidated(1);
-        assert(!isLiquidated, "should NOT complete liquidation bonds");
+        const isLiquidated = await aggregatorInstance.getLiquidationData(1);
+        assert(!isLiquidated[0], "should NOT complete liquidation bonds");
       });
 
       it("check liquidatedBondIndex", async function () {
-        const liquidatedBondIndex = await aggregatorInstance.getLiquidatedBondIndex();
+        const liquidatedBondIndex = await aggregatorInstance.getLiquidationData(
+          1
+        );
         assert(
-          liquidatedBondIndex.toString(),
+          liquidatedBondIndex[1].toString(),
           "10",
           "LiquidateBondIndex should be 10. But returned: " +
-            liquidatedBondIndex.toString()
+            liquidatedBondIndex[1].toString()
         );
       });
       it("Check TotalSupply of BT11 and BT12", async function () {
@@ -605,18 +915,20 @@ contract("simple aggregator", function (accounts) {
 
       it("check isLiquidated after run one more liquidateBond()", async () => {
         const receipt = await aggregatorInstance.liquidateBonds();
-        const isLiquidated = await aggregatorInstance.getIsLiquidated(1);
-        assert(isLiquidated, "should complete liquidation bonds");
+        const isLiquidated = await aggregatorInstance.getLiquidationData(1);
+        assert(isLiquidated[0], "should complete liquidation bonds");
       });
 
       it("check liquidatedBondIndex after run one more liquidateBond()", async function () {
         await aggregatorInstance.liquidateBonds();
-        const liquidatedBondIndex = await aggregatorInstance.getLiquidatedBondIndex();
+        const liquidatedBondIndex = await aggregatorInstance.getLiquidationData(
+          1
+        );
         assert(
-          liquidatedBondIndex.toString(),
+          liquidatedBondIndex[1].toString(),
           "10",
           "LiquidateBondIndex should be 10. But returned: " +
-            liquidatedBondIndex.toString()
+            liquidatedBondIndex[1].toString()
         );
       });
       it("check burn all bonds", async () => {
@@ -634,8 +946,8 @@ contract("simple aggregator", function (accounts) {
     let previousmaturity;
     let BT1;
     beforeEach(async () => {
-      maturity = await calcMaturity();
-      previousmaturity = maturity - 608000 * 3;
+      maturity = await setBonds.calcMaturity();
+      previousmaturity = maturity - 604800 * 3;
       await bondMakerInstance.registerBondPair(previousmaturity, strikePrice);
       await bondMakerInstance.registerBondPair(maturity, strikePrice);
       const BGInfo = await bondMakerInstance.getBondGroup(3);
@@ -656,10 +968,9 @@ contract("simple aggregator", function (accounts) {
       it("check return value", async () => {
         //console.log(receipt.logs);
         assert.equal(
-          receipt.logs[2].args.number.toString(),
+          receipt.logs[2].args.num.toString(),
           "1",
-          "Invalid totalSupply returned" +
-            receipt.logs[2].args.number.toString()
+          "Invalid totalSupply returned" + receipt.logs[2].args.num.toString()
         );
       });
       it("check burn bond", async function () {
@@ -680,10 +991,9 @@ contract("simple aggregator", function (accounts) {
           maturity + 10000
         );
         assert.equal(
-          receipt.logs[0].args.number.toString(),
+          receipt.logs[0].args.num.toString(),
           "0",
-          "Invalid totalSupply returned" +
-            receipt.logs[0].args.number.toString()
+          "Invalid totalSupply returned" + receipt.logs[0].args.num.toString()
         );
       });
 
@@ -695,10 +1005,9 @@ contract("simple aggregator", function (accounts) {
           previousmaturity
         );
         assert.equal(
-          receipt.logs[0].args.number.toString(),
+          receipt.logs[0].args.num.toString(),
           "0",
-          "Invalid totalSupply returned" +
-            receipt.logs[0].args.number.toString()
+          "Invalid totalSupply returned" + receipt.logs[0].args.num.toString()
         );
       });
 
@@ -710,10 +1019,9 @@ contract("simple aggregator", function (accounts) {
           previousmaturity
         );
         assert.equal(
-          receipt.logs[0].args.number.toString(),
+          receipt.logs[0].args.num.toString(),
           "0",
-          "Invalid totalSupply returned" +
-            receipt.logs[0].args.number.toString()
+          "Invalid totalSupply returned" + receipt.logs[0].args.num.toString()
         );
       });
     });
@@ -723,7 +1031,7 @@ contract("simple aggregator", function (accounts) {
     let maturity;
 
     beforeEach(async () => {
-      maturity = await calcMaturity();
+      maturity = await setBonds.calcMaturity();
       await bondMakerInstance.registerBondPair(maturity, strikePrice);
     });
     describe("first time", function () {
@@ -733,25 +1041,30 @@ contract("simple aggregator", function (accounts) {
       });
 
       it("check total supply", async () => {
-        const totalShare = await aggregatorInstance.totalSupplyTermOf(1);
+        const totalShare = await aggregatorInstance.totalShareData(1);
         assert.equal(
-          totalShare.toString(),
+          totalShare[0].toString(),
           "100000000",
           "Invalid total share returned: " + totalShare.toString()
         );
       });
 
-      it("check ethPerToken", async () => {
-        const ethPerToken = await aggregatorInstance.getCollateralPerToken(1);
+      it("check collateralPerToken", async () => {
+        const collateralPerToken = await aggregatorInstance.getCollateralPerToken(
+          1
+        );
         assert.equal(
-          ethPerToken.toString(),
+          collateralPerToken.toString(),
           "100000000",
-          "Invalid ethPerToken returned: " + ethPerToken.toString()
+          "Invalid collateralPerToken returned: " +
+            collateralPerToken.toString()
         );
       });
 
       it("check eth balance of reserve", async () => {
-        const balance = await web3.eth.getBalance(reserveERC20Instance.address);
+        const balance = await collateralInstance.balanceOf(
+          reserveERC20Instance.address
+        );
         assert.equal(balance, 0, "invalid balance returned: " + balance);
       });
 
@@ -763,29 +1076,32 @@ contract("simple aggregator", function (accounts) {
           await aggregatorInstance.removeLiquidity(50000000);
           await time.increaseTo(maturity + 100);
 
-          maturity = await calcMaturity();
+          maturity = await setBonds.calcMaturity();
           await bondMakerInstance.registerBondPair(maturity, strikePrice);
           await aggregatorInstance.changeIsLiquidated();
           //await aggregatorInstance.liquidateBonds();
           await aggregatorInstance.renewMaturity();
         });
         it("check total supply", async () => {
-          const totalShare = await aggregatorInstance.totalSupplyTermOf(2);
+          const totalShare = await aggregatorInstance.totalShareData(2);
 
           assert.equal(
-            totalShare.toString(),
+            totalShare[0].toString(),
             "250000000",
             "Invalid total share returned: " + totalShare.toString()
           );
         });
 
-        it("check ethPerToken", async () => {
-          const ethPerToken = await aggregatorInstance.getCollateralPerToken(2);
+        it("check collateralPerToken", async () => {
+          const collateralPerToken = await aggregatorInstance.getCollateralPerToken(
+            2
+          );
 
           assert.equal(
-            ethPerToken.toString(),
+            collateralPerToken.toString(),
             "100000000",
-            "Invalid ethPerToken returned: " + ethPerToken.toString()
+            "Invalid collateralPerToken returned: " +
+              collateralPerToken.toString()
           );
         });
 
@@ -796,7 +1112,7 @@ contract("simple aggregator", function (accounts) {
 
           assert.equal(
             balance.toString(),
-            "49999998",
+            "50000000",
             "Invalid balance returned: " + balance
           );
         });
@@ -991,5 +1307,296 @@ contract("simple aggregator", function (accounts) {
         );
       });
     });
+  });
+  describe("total test", async () => {
+    async function settle(aggregatorInstance, accounts) {
+      await aggregatorInstance.settleTokens({ from: accounts[0] });
+      await aggregatorInstance.settleTokens({ from: accounts[1] });
+    }
+    async function changeLiquidity(aggregatorInstance, amount) {
+      if (amount > 0) {
+        await collateralInstance.transfer(
+          aggregatorInstance.address,
+          Math.floor(amount * 10 ** 8)
+        );
+      } else if (amount < 0) {
+        await aggregatorInstance.withdrawCollateral(
+          Math.floor(amount * -1 * 10 ** 8)
+        );
+      }
+    }
+    const inputFile = "test/contract_test/unit_test/Aggregator/testCases.json";
+    const data = JSON.parse(fs.readFileSync(inputFile, "utf8"));
+    for (testCase of data.cases) {
+      let maturity;
+      let SBT;
+      let calcedTotalSBT;
+      describe("first term", function () {
+        beforeEach(async () => {
+          maturity = await strategyInstance.calcNextMaturity();
+          await bondMakerInstance.registerBondPair(maturity, 40000000000);
+
+          if (testCase.firstStage.LP1 > 0) {
+            await aggregatorInstance.addLiquidity(
+              Math.floor(testCase.firstStage.LP1 * 10 ** 8),
+              {
+                from: accounts[0],
+              }
+            );
+          } else if (testCase.firstStage.LP1 < 0) {
+            await aggregatorInstance.removeLiquidity(
+              Math.floor(testCase.firstStage.LP1 * 10 ** 8 * -1),
+              {
+                from: accounts[0],
+              }
+            );
+          }
+          if (testCase.firstStage.LP2 > 0) {
+            await aggregatorInstance.addLiquidity(
+              Math.floor(testCase.firstStage.LP2 * 10 ** 8),
+              {
+                from: accounts[1],
+              }
+            );
+          } else if (testCase.firstStage.LP2 < 0) {
+            await aggregatorInstance.removeLiquidity(
+              Math.floor(testCase.firstStage.LP2 * 10 ** 8 * -1),
+              {
+                from: accounts[1],
+              }
+            );
+          }
+          calcedTotalSBT = testCase.firstStage.TS * testCase.firstStage.EPT;
+          maturity = await strategyInstance.calcNextMaturity();
+          await aggregatorInstance.renewMaturity();
+          await settle(aggregatorInstance, accounts);
+        });
+        it("check totalSupply of first stage", async () => {
+          const totalSupply = await aggregatorInstance.totalSupply();
+          assert.equal(
+            totalSupply.toString(),
+            String(testCase.firstStage.TS * 10 ** 8),
+            "invalid totalSupply returned expected: " +
+              String(testCase.firstStage.TS * 10 ** 8) +
+              " got: " +
+              totalSupply.toString()
+          );
+        });
+        it("check ethPerToken of first stage", async () => {
+          const EthPerToken = await aggregatorInstance.getCollateralPerToken(1);
+          assert.equal(
+            EthPerToken.toString(),
+            String(testCase.firstStage.EPT * 10 ** 8),
+            "invalid EthPerToken returned expected: " +
+              String(testCase.firstStage.EPT * 10 ** 8) +
+              " got: " +
+              EthPerToken.toString()
+          );
+        });
+        it("check balances of first stage", async () => {
+          const L1Info = await aggregatorInstance.balanceOf(accounts[0]);
+          assert.equal(
+            L1Info.toString(),
+            String(testCase.firstStage.LP1_A * 10 ** 8),
+            "invalid share balance of LP returned expected: " +
+              String(testCase.firstStage.LP1_A * 10 ** 8) +
+              " got: " +
+              L1Info.toString()
+          );
+          const L2Info = await aggregatorInstance.balanceOf(accounts[1]);
+          assert.equal(
+            L2Info.toString(),
+            String(testCase.firstStage.LP2_A * 10 ** 8),
+            "invalid share balance of LP2 returned expected: " +
+              String(testCase.firstStage.LP2_A * 10 ** 8) +
+              " got: " +
+              L2Info.toString()
+          );
+        });
+
+        describe("second term", function () {
+          beforeEach(async () => {
+            await bondMakerInstance.registerBondPair(maturity, 40000000000);
+            if (testCase.secondStage.LP1 > 0) {
+              await aggregatorInstance.addLiquidity(
+                Math.floor(testCase.secondStage.LP1 * 10 ** 8),
+                {
+                  from: accounts[0],
+                }
+              );
+            } else if (testCase.secondStage.LP1 < 0) {
+              await aggregatorInstance.removeLiquidity(
+                Math.floor(testCase.secondStage.LP1 * 10 ** 8 * -1),
+                {
+                  from: accounts[0],
+                }
+              );
+            }
+
+            if (testCase.secondStage.LP2 > 0) {
+              await aggregatorInstance.addLiquidity(
+                Math.floor(testCase.secondStage.LP2 * 10 ** 8),
+                {
+                  from: accounts[1],
+                }
+              );
+            } else if (testCase.secondStage.LP2 < 0) {
+              await aggregatorInstance.removeLiquidity(
+                Math.floor(testCase.secondStage.LP2 * 10 ** 8 * -1),
+                {
+                  from: accounts[1],
+                }
+              );
+            }
+            calcedTotalSBT = testCase.secondStage.TS * testCase.secondStage.EPT;
+            await changeLiquidity(
+              aggregatorInstance,
+              testCase.secondStage.changeLiquidity
+            );
+            await time.increaseTo(maturity.toNumber() + 100);
+            await aggregatorInstance.liquidateBonds();
+            maturity = await strategyInstance.calcNextMaturity();
+            await aggregatorInstance.renewMaturity();
+            await settle(aggregatorInstance, accounts);
+          });
+          it("check totalSupply of second stage", async () => {
+            const totalSupply = await aggregatorInstance.totalSupply();
+            assert.equal(
+              totalSupply.toString(),
+              String(testCase.secondStage.TS * 10 ** 8),
+              "invalid totalSupply returned expected: " +
+                String(testCase.secondStage.TS * 10 ** 8) +
+                " got: " +
+                totalSupply.toString()
+            );
+          });
+          it("check ethPerToken of second stage", async () => {
+            const EthPerToken = await aggregatorInstance.getCollateralPerToken(
+              2
+            );
+            assert.equal(
+              EthPerToken.toString(),
+              String(Math.floor(testCase.secondStage.EPT * 10 ** 8)),
+              "invalid EthPerToken returned expected: " +
+                String(Math.floor(testCase.secondStage.EPT * 10 ** 8)) +
+                " got: " +
+                EthPerToken.toString()
+            );
+          });
+          it("check balances of second stage", async () => {
+            const L1Info = await aggregatorInstance.balanceOf(accounts[0]);
+            assert.equal(
+              L1Info.toString(),
+              String(testCase.secondStage.LP1_A * 10 ** 8),
+              "invalid share balance of LP returned expected: " +
+                String(testCase.secondStage.LP1_A * 10 ** 8) +
+                " got: " +
+                L1Info.toString()
+            );
+            const L2Info = await aggregatorInstance.balanceOf(accounts[1]);
+            assert.equal(
+              L2Info.toString(),
+              String(testCase.secondStage.LP2_A * 10 ** 8),
+              "invalid share balance of LP2 returned expected: " +
+                String(testCase.secondStage.LP2_A * 10 ** 8) +
+                " got: " +
+                L2Info.toString()
+            );
+          });
+
+          describe("third term", function () {
+            beforeEach(async () => {
+              await bondMakerInstance.registerBondPair(maturity, 40000000000);
+              if (testCase.thirdStage.LP1 > 0) {
+                await aggregatorInstance.addLiquidity(
+                  Math.floor(testCase.thirdStage.LP1 * 10 ** 8),
+                  {
+                    from: accounts[0],
+                  }
+                );
+              } else if (testCase.thirdStage.LP1 < 0) {
+                await aggregatorInstance.removeLiquidity(
+                  Math.floor(testCase.thirdStage.LP1 * 10 ** 8 * -1),
+                  {
+                    from: accounts[0],
+                  }
+                );
+              }
+
+              if (testCase.thirdStage.LP2 > 0) {
+                await aggregatorInstance.addLiquidity(
+                  Math.floor(testCase.thirdStage.LP2 * 10 ** 8),
+                  {
+                    from: accounts[1],
+                  }
+                );
+              } else if (testCase.thirdStage.LP2 < 0) {
+                await aggregatorInstance.removeLiquidity(
+                  Math.floor(testCase.thirdStage.LP2 * 10 ** 8 * -1),
+                  {
+                    from: accounts[1],
+                  }
+                );
+              }
+
+              calcedTotalSBT = testCase.thirdStage.TS * testCase.thirdStage.EPT;
+              await changeLiquidity(
+                aggregatorInstance,
+                testCase.thirdStage.changeLiquidity
+              );
+              await time.increaseTo(maturity.toNumber() + 100);
+              await aggregatorInstance.liquidateBonds();
+              maturity = await strategyInstance.calcNextMaturity();
+              await aggregatorInstance.renewMaturity();
+              await settle(aggregatorInstance, accounts);
+            });
+            it("check totalSupply of third stage", async () => {
+              const totalSupply = await aggregatorInstance.totalSupply();
+              assert.equal(
+                totalSupply.toString(),
+                String(testCase.thirdStage.TS * 10 ** 8),
+                "invalid totalSupply returned expected: " +
+                  String(testCase.thirdStage.TS * 10 ** 8) +
+                  " got: " +
+                  totalSupply.toString()
+              );
+            });
+            it("check ethPerToken of third stage", async () => {
+              const EthPerToken = await aggregatorInstance.getCollateralPerToken(
+                3
+              );
+              assert.equal(
+                EthPerToken.toString(),
+                String(Math.floor(testCase.thirdStage.EPT * 10 ** 8)),
+                "invalid EthPerToken returned expected: " +
+                  String(Math.floor(testCase.thirdStage.EPT * 10 ** 8)) +
+                  " got: " +
+                  EthPerToken.toString()
+              );
+            });
+            it("check balances of third stage", async () => {
+              const L1Info = await aggregatorInstance.balanceOf(accounts[0]);
+              assert.equal(
+                L1Info.toString(),
+                String(testCase.thirdStage.LP1_A * 10 ** 8),
+                "invalid share balance of LP returned expected: " +
+                  String(testCase.thirdStage.LP1_A * 10 ** 8) +
+                  " got: " +
+                  L1Info.toString()
+              );
+              const L2Info = await aggregatorInstance.balanceOf(accounts[1]);
+              assert.equal(
+                L2Info.toString(),
+                String(testCase.thirdStage.LP2_A * 10 ** 8),
+                "invalid share balance of LP2 returned expected: " +
+                  String(testCase.thirdStage.LP2_A * 10 ** 8) +
+                  " got: " +
+                  L2Info.toString()
+              );
+            });
+          });
+        });
+      });
+    }
   });
 });

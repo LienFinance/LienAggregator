@@ -1,75 +1,112 @@
-# Meaning of term
-1. Priceunit => Unit of collateral asset price. Strategy contract determines SBT strike price, valid shape of bond token and amount of bond to tranche using this value. When collateral asset is ETH/USDC, priceunit is $10 and when collateral asset is USDC/ETH, priceunit is $0.00001.
-2. AggregatorLength => Term length of aggregator.
+
+# Meaning of terms
+1. Priceunit => A unit of the collateral asset price. The strategy contract determines a SBT strike price, valid shape of bond token and amount of bond to tranche using this value. When collateral asset is ETH/USDC, priceunit is $10.
+2. AggregatorLength => The term length of the aggregator.
+3. IsReversedOracle => Whether the aggregator uses inverse numbers of an oracle price as the strike price of the bond token.
+
+# Workflow of Lien Aggregator
+- Blue figures are functions which users call.
+- Red figures are functions which contract manager calls.
+- Gray figures are internal transactions.
+- Figures with dashed line are internal functions which can be called more than once in one transaction.
+<img src="./images/image1.jpg">
+<img src="./images/image2.jpg">
+<img src="./images/image3.jpg">
+<img src="./images/image4.jpg">
 
 # Aggregator
-- Receive collateral asset and issue share token (share token is ERC20)
-- Issue bond token and provide liquidity for DOTC contract (DOTC is decentralized exchange of bond)
+- Used to receive collateral assets and to issue share tokens (share tokens are ERC20)
+- It issues bond tokens and provide liquidity for the GDOTC contract (GDOTC means the generalized decentralized exchange of bonds)
+- It is the Liquidity mining program of Lien token
 ## addLiquidity()
-- Send the collateral asset to provide liquidity. 
-- You can run this function anytime, but the collateral asset you have provided is not used in this term as the amount of share token is not determined at this point and the amount of the collateral token in the aggregator contract in this term will not have not been unconfirmed until the end of this term.
+- Used to send collateral assets to provide liquidity.
+- Although it could be run whenever users want, the collateral assets provided by users are not used in the term the assets are added. The amount of share tokens are not determined at this point as the amount of collateral token is confirmed at the end of the term by Aggregator. 
 
 ## removeLiquidity()
-- Withdraw liquidity and burn share token.
-- You can run this function anytime, but the collateral asset you have provided is not returned at this point, because the amount of the collateral token in the aggregator contract in this term will not have not been confirmed until the end of this term.
-- Share Token is burned at this point.
+- Used to withdraw a certain amount of liquidity and burn share tokens.
+- Although it could be run whenever users want, the collateral assets which have been provided are not returned at this point as the collateral token amount of Aggregator in this term is unconfirmed until this term ends.
+- The Share Tokens are burned at this point.
 
 ## TrancheBonds()
-- Receive array of ```[bondGroupID, amount to be issued]``` and issue bond.
-- The 0th of this array is the amount of collateral to be locked in the DOTC contract.
-- If the amount to be issued is negative value, run ```reverseBondToCollateral``` to burn the bond and get the collateral asset.
-- If the amount to be issued is positive value, run ```issueNewBonds``` to mint a new bond.
-
-## addIssuableBondGroup()
-- Add a valid bond group to issue in ```TrancheBonds()```.
-- ```Strategy.isValidLBT()``` determines whether this bond group is valid to issue.
-- If valid, add this bond group to the issuable bond group list and approve each bond token to DOTC contract.
+- Used to obtain the amount of issuing/burning bonds from the strategy contract to burn/issue.
+- If there is no suitable bond group for the price when TrancheBonds() is called, it registers a new bond group by ```_addSuitableBondGroup()```
+- 0th of array ```reverseBonds``` from the strategy contract is bond group ID to be burned and 1st is amount to be burned.
+- The value of ```ethAmount``` from the strategy contract is the amount of collateral to be locked to the DOTC contract.
+- If the amount to be burned is more than 0, run ```reverseBondToCollateral``` to burn bonds and get collateral assets.
+- If the amount to be issued is more than 0, run ```issueNewBonds``` to mint new bonds.
 
 ## liquidateBonds()
-- Burn all the bond tokens in the aggregator contract.
-- Select and burn the bond tokens owned by the aggregator contract whose maturity comes at the end of the period.
+- Used to burn all bond tokens which Aggregator holds.
+- It selects all bond tokens held by Aggreagator whose maturity reaches during this period and burns.
 - Run after maturity of this period.
-- If there are too many bond groups to be processed, stop the process to avoid out-of-gas.
+- If there are many bondgroups to be processed, it stops processing to avoid being out of gas.
+- It executes liquidation of bond groups.
 
 ## renewMaturity()
-- Update maturity and strike price, then set the supply of the share token.
-- Determine the total supply of share token in the next period from the liquidity added/removed during this period.
-- Determine the amount of the collateral asset that can be used for issuing bond tokens.
-- The collateral asset that will be used in ```settleTokens``` is moved to another contract (ReserveETH or ReserveERC20).
-- Determines collateral token amount per 1 share token, and this amount will be used in ```settleTokens()```
+- Used to update the maturity and the strike price, then settle the share token supply.
+- It determines the total supply of share tokens in the next period from the liquidity added and removed during this period.
+- It determines the amount of collateral asset which  can be used for issuing bond tokens.
+- Collateral assets which are used in ```settleTokens``` are moved to another contract (ReserveETH or ReserveERC20).
+- It determines the collateral asset amount per 1 share token, and this amount is used in ```settleTokens()```
+- It registers a new feeBase to the strategy contract and then updates the feeBase to GDOTC.
 
 ## SettleTokens()
-- Settle collateral token and share token added/removed by ```addLiquidity()``` or ```removeLiquidity()```.
-- If ```addLiquidity()```or ```removeLiquidity()``` was executed in the previous period, the share token balance is incremented/transferred.
-- This function is called automatically when ```addLiquidity()``` or ```removeLiquidity()``` was called in the previous period.
+- Used to settle collateral tokens and share tokens added or removed by ```addLiquidity()``` or ```removeLiquidity()```.
+- When it runs ```addLiquidity()``` in the previous period, the share token balance is added. When it runs ```removeLiquidity()```, it transfers collateral assets.
+- This function is called automatically when ```addLiquidity()``` or ```removeLiquidity()``` is called.
+
+## addSuitableBondGroup
+- Used to register a new bond group whose call option strike price is near the price when addSuitableBondGroup is called.
+## updateTotalReward()
+- Used to determine total reward token (Lien token) amount per 1 term.
+- The contract owner can call this function.
+## ClaimReward()
+- Used to update the reward token amount of ```msg.sender``` and transfer reward tokens when the reward amount is more than 0.
+- it changes the reward token amount of ```msg.sender``` to 0.
+## _updateReward()
+- Used to execute ```ClaimReward()``` every time before changing  the user's share token balance.
+- The amount of reward is determined by the period between the next term when _updateReward() has been called last time and the term which is defined in the param ```term```.
+- The reward amount per term is calculated by ```balance of share tokens / the total supply in this term * the total reward amount of this term```
 
 # Strategy
-- Check and add the given SBT strike price and its maturity to the issuable bond group list.
-- Determine the amount of bond token to be issued in ```TrancheBond()```.
+- Used to determine the amount of bond tokens to be issued in ```TrancheBond()```.
+- It manages feeBase (minimum fee rate in GDOTC) for each aggregator type.
 ## calcMaturity
-- Return the farest unix time of Friday 3 p.m UTC within 3 weeks. 
-## isValidLBT()
-- Check if the given bond group is issuable or not.
-- Confirm the 0th bond in the bond group is SBT, 1th is Call Option, 2th is Leveraged token, 3th is Volatility short token, and whether the Volatility short token parameters is in between the valid range.
-## getCurrentStrikePrice
-- Determine the valid strike price for the new period.
-- Calculate SBT price whose strike price is half the current price, and if the SBT value is more than 95% of its strike price, return SBT strike price.
-- If not, try once more with a lower strike price.
+- Used to return unix time on Friday 3 weeks later 3 p.m UTC.
+- Calculation is  ```Truncate(current timestamp - 144000(the number of seconds from Thursday 0 a.m to Friday 3 p.m) / 604800(the number of seconds of 1 week))  * 604800 + 144000```
+## getCurrentStrikePrice()
+- Used to determine the valid strike price for the next term.
+- It is determined  as the SBT price whose strike price is half of the price when getCurrentStrikePrice is called.
+- If the reverse oracle is set to Aggregator, return the reversed value.
+## getCurrentSpread()
+- Used to return the current feeBase in GDOTC, registered by Aggregator.
+## registerAggregators()
+- Used to register aggregator addresses and Information about the feeBase calculation by the aggregator owner.
+- The Aggregator ID is generated by ```(owner address, oracle address, whether aggregator uses reversed oracle)```
+- The feebase is managed by Aggregator ID.
 ## getTrancheBonds()
-- Get the list of issuable bond groups from the aggregator contract, and determine the bond token amount to be issued/burned.
-- Return positive value for the bond group whose Call option strike price is in between Current Price +- PriceUnit * 2. (Amount to supply is calculated by ```Usable collateral asset amount / 5 - balance of this bond token```)
-- Return negative value for the bond group whose Call option strike price is out of the range Current Price +- PriceUnit * 5 and balance of aggregator is more than ```Usable collateral asset amount / 10```.
+- Used to obtain the issuable bond group ID and the list of burnable bond groups from Aggregator, and determines the bond group ID to be burned and the bond token amount to be issued/burned.
+- The amount of supply is calculated by ```Usable collateral asset amount / 5 - balance of this bond group```.
+- There are three conditions for bond groups to be burned;
+A certain bond group holds the call option which strike price is differed from the price when getTrancheBonds() is called more than 5 times of a PriceUnit
+The amount of collateral asset held by a certain bond group is more than 10% of the total collateral assets held by Aggregator(=```Usable collateral asset amount / 10```)
+The amount of the collateral assets is the largest among the bond group which fulfils the condition 1 and 2
+  All of bond groups which fulfils the condition 1 and 2 are burned.
 
-# Flow of aggregator
-1. Before the Period
-   - Run ```renewMaturity()``` to update strike price and maturity for this period
-2. During the Period
-   - Add IssuableBondGroup through ```addIssuableBond()```
-   - Run ```TrancheBonds()``` to provide liquidity to GDOTC
-3. After Maturity
-   - Burn All the bond tokens in the aggregator contract
-4. After Liquidation
-   - Run ```renewMaturity()``` to update strike price and maturity for the new period
+## _updateFeeBase
+- When ```collateralPerToken (collateral amount / share tokensupply)``` is decreased by 5%, it increases the feeBase in GDOTC by ```FeeInfo.upwardDifference```
+- When ```collateralPerToken (collateral amount / share tokensupply)``` is increase by 5%, it decreases feeBase in GDOTC by ```FeeInfo.downwardDifference``` (But if old feeBase is lesser than ```INITIAL_FEE_BASE```, the new fee base is still ```INITIAL_FEE_BASE```)
+- Then it registers the new feeBase to the strategy contract.
+
+# Flow of Aggregator
+1. Before the term starts
+   - It runs ```renewMaturity()``` and update the strike price and the maturity for this term
+2. During the  term
+   - It runs ```TrancheBonds()``` to provide the liquidity to GDOTC
+3. After the maturity date
+   - It burns all bond tokens which is held by Aggregator
+4. After liquidation
+   - It runs ```renewMaturity()``` and updates the strike price and the maturity for the new period
 
 # Usage
 - Initialize (install libraries, download and process submodule repository)
@@ -82,15 +119,16 @@ or
 ```yarn migrate:test:local```
 - Unit test
 ```yarn test:unit```
-- Combine test between aggregator and strategy
+- Combine test between aggregator and strategy, bond token contracts
 ```yarn test:combine```
-- Combine test with bondtoken contract and GDOTC contract (You can't use this command because BondToken and GDOTC repository which this aggregator uses is not published)
-```yarn test:combine:bondtoken```
 
 # Target contracts
 - contracts/SimpleAggregator/ReserveERC20.sol
 - contracts/SimpleAggregator/ReserveETH.sol
+- contracts/SimpleAggregator/BondPricerWithAcceptableMaturity.sol
+- contracts/SimpleAggregator/BondRegistrator.sol
 - contracts/SimpleAggregator/SimpleAggregator.sol
 - contracts/SimpleAggregator/SimpleAggregatorCollateralizedERC20.sol
 - contracts/SimpleAggregator/SimpleAggregatorCollateralizedEth.sol
 - contracts/Strategy/StrategyForSimpleAggregator.sol
+- contracts/Strategy/StrategyForSimpleAggregatorETH.sol
