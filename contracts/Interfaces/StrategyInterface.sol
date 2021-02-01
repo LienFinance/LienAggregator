@@ -1,66 +1,57 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.7.1;
-import "./BondMakerInterface.sol";
-
-interface StrategyInterface {
-    function isValidBondGroup(
-        BondMakerInterface bondMaker,
-        uint256 bondGroupId,
-        uint256 currentStrikePrice,
-        uint256 nextTimeStamp
-    ) external view returns (bool);
-
-    function isValidLBT(
-        BondMakerInterface bondMaker,
-        uint256 bondGroupId,
-        uint256 currentPrice,
-        uint256 solidStrikePrice,
-        uint256 maturity
-    ) external view returns (bool);
-
-    function getTrancheBonds(
-        BondMakerInterface bondMaker,
-        address aggregatorAddress,
-        uint256 baseBondGroupID,
-        uint256 price,
-        uint256[] calldata bondGroupList
-    ) external view returns (int256[] memory);
-
-    function getCurrentStrikePrice(
-        uint256 maturity,
-        uint256 currentPriceE8,
-        uint256 volatilityE8
-    ) external view returns (uint256);
-
-    function getCurrentSpread() external view returns (int16);
-}
+import "../BondToken_and_GDOTC/bondMaker/BondMakerInterface.sol";
 
 interface SimpleStrategyInterface {
     function calcNextMaturity() external view returns (uint256 nextTimeStamp);
 
-    function isValidLBT(
-        BondMakerInterface bondMaker,
-        uint256 bondGroupId,
-        uint256 currentPrice,
-        uint256 solidStrikePrice,
-        uint256 maturity,
-        uint32 priceUnit
-    ) external view returns (bool);
+    function calcCallStrikePrice(
+        uint256 currentPriceE8,
+        uint64 priceUnit,
+        bool isReversedOracle
+    ) external pure returns (uint256 callStrikePrice);
+
+    function calcRoundPrice(
+        uint256 price,
+        uint64 priceUnit,
+        uint8 divisor
+    ) external pure returns (uint256 roundedPrice);
 
     function getTrancheBonds(
         BondMakerInterface bondMaker,
         address aggregatorAddress,
+        uint256 issueBondGroupIdOrStrikePrice,
         uint256 price,
         uint256[] calldata bondGroupList,
-        uint32 priceUnit
-    ) external view returns (int256[] memory);
+        uint64 priceUnit,
+        bool isReversedOracle
+    )
+        external
+        view
+        returns (
+            uint256 issueAmount,
+            uint256 ethAmount,
+            uint256[2] memory IDAndAmountOfBurn
+        );
 
     function getCurrentStrikePrice(
-        uint256 maturity,
         uint256 currentPriceE8,
-        uint256 volatilityE8,
-        uint32 priceUnit
-    ) external view returns (uint256);
+        uint64 priceUnit,
+        bool isReversedOracle
+    ) external pure returns (uint256);
 
-    function getCurrentSpread() external view returns (int16);
+    function getCurrentSpread(
+        address owner,
+        address oracleAddress,
+        bool isReversedOracle
+    ) external view returns (int16);
+
+    function registerCurrentFeeBase(
+        int16 currentFeeBase,
+        uint256 currentCollateralPerToken,
+        uint256 nextCollateralPerToken,
+        address owner,
+        address oracleAddress,
+        bool isReversedOracle
+    ) external;
 }

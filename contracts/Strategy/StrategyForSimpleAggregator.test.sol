@@ -1,19 +1,24 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.7.1;
-import "./StrategyForSimpleAggregator.sol";
+import "./StrategyForSimpleAggregatorETH.sol";
 
-contract testSimpleStrategy is StrategyForSimpleAggregator {
+contract testSimpleStrategy is StrategyForSimpleAggregatorETH {
     constructor(
         ExchangeInterface _exchange,
         uint256 termInterval,
         uint256 termCF
-    ) StrategyForSimpleAggregator(_exchange, termInterval, termCF) {}
+    ) StrategyForSimpleAggregatorETH(_exchange, termInterval, termCF) {}
 
     function getLBTStrikePrice(
         BondMakerInterface _bondMaker,
-        uint256 bondGroupID
-    ) public view returns (uint256 strikePrice, address LBTAddress) {
-        (strikePrice, LBTAddress) = _getLBTStrikePrice(_bondMaker, bondGroupID);
+        uint256 bondGroupID,
+        bool reverseOracle
+    ) public view returns (uint128 strikePrice, address LBTAddress) {
+        (strikePrice, LBTAddress) = _getLBTStrikePrice(
+            _bondMaker,
+            bondGroupID,
+            reverseOracle
+        );
     }
 
     function getBaseAmount(SimpleAggregatorInterface aggregator)
@@ -30,5 +35,21 @@ contract testSimpleStrategy is StrategyForSimpleAggregator {
         returns (uint256)
     {
         return _applyDecimalGap(amount, decimalGap);
+    }
+
+    function getReversedValue(uint256 value, bool isReversedOracle)
+        external
+        pure
+        returns (uint256)
+    {
+        return _getReversedValue(value, isReversedOracle);
+    }
+
+    function getMinBondAmount(
+        BondMakerInterface bondMaker,
+        uint256 bondGroupID,
+        address aggregatorAddress
+    ) external view returns (uint256 balance) {
+        return _getMinBondAmount(bondMaker, bondGroupID, aggregatorAddress);
     }
 }

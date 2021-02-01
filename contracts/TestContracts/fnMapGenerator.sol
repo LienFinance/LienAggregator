@@ -2,7 +2,7 @@
 pragma solidity 0.7.1;
 
 contract fnMapGenerator {
-    function zipLines(uint64[] memory points)
+    function _zipLines(uint64[] memory points)
         internal
         pure
         returns (uint256[] memory lines)
@@ -20,10 +20,10 @@ contract fnMapGenerator {
 
     function getFnMap(uint64[] memory points)
         public
-        view
+        pure
         returns (bytes memory fnMap)
     {
-        uint256[] memory polyline = zipLines(points);
+        uint256[] memory polyline = _zipLines(points);
         return abi.encode(polyline);
     }
 }

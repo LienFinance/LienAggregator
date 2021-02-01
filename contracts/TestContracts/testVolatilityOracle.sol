@@ -4,11 +4,7 @@ pragma solidity 0.7.1;
 contract testVolatilityOracle {
     uint64 Volatility = 10000000;
 
-    function getVolatility(uint64 untilMaturity)
-        external
-        view
-        returns (uint64 volatilityE8)
-    {
+    function getVolatility(uint64) external view returns (uint64 volatilityE8) {
         return Volatility;
     }
 

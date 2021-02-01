@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.7.1;
 
-import "../utils/TransferETH.sol";
+import "../BondToken_and_GDOTC/util/TransferETH.sol";
 import "../Interfaces/StrategyInterface.sol";
-import "../Interfaces/BondMakerInterface.sol";
+import "../BondToken_and_GDOTC/bondMaker/BondMakerInterface.sol";
 import "../../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract TestAggregator2 is TransferETH {
@@ -30,12 +30,12 @@ contract TestAggregator2 is TransferETH {
 }
 
 contract MockSimpleAggregator {
-    bool isETH;
+    address collateralAddress;
     uint256 collateralAmount;
     int16 collateralDecimal;
 
-    function isEthAggregator() public view returns (bool) {
-        return isETH;
+    function getCollateralAddress() external view returns (address) {
+        return collateralAddress;
     }
 
     function getCollateralAmount() public view returns (uint256) {
@@ -47,11 +47,11 @@ contract MockSimpleAggregator {
     }
 
     function changeData(
-        bool _isETH,
+        address _collateralAddress,
         uint256 _collateralAmount,
         int16 _collateralDecimal
     ) external {
-        isETH = _isETH;
+        collateralAddress = _collateralAddress;
         collateralAmount = _collateralAmount;
         collateralDecimal = _collateralDecimal;
     }

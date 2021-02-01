@@ -4,7 +4,6 @@ pragma solidity 0.7.1;
 import "../../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract mockERC20Aggregator {
-    uint256 public amount;
     address public SBTAddress;
     uint256 receiveAmount;
     address collateralAddress;
@@ -22,16 +21,16 @@ contract mockERC20Aggregator {
         return value;
     }
 
-    function addLiquidity(uint256 amount) external {
+    function addLiquidity(uint256 issueAmount) external {
         require(
             IERC20(collateralAddress).transferFrom(
                 msg.sender,
                 address(this),
-                amount
+                issueAmount
             ),
             "Test Aggregator: Token transferFrom"
         );
-        receiveAmount = amount;
+        receiveAmount = issueAmount;
     }
 
     function setSBTAddress(address _SBTAddress) public {

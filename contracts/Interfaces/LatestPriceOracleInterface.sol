@@ -12,7 +12,7 @@ interface LatestPriceOracleInterface {
 
     /**
      * @dev Returns the last updated price. Decimals is 8.
-     **/
+     */
     function latestPrice() external returns (uint256);
 
     /**

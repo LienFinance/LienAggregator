@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.7.1;
-import "../utils/TransferETH.sol";
+import "../BondToken_and_GDOTC/util/TransferETH.sol";
 
 contract ReserveEth is TransferETH {
     address owner;
@@ -16,6 +16,10 @@ contract ReserveEth is TransferETH {
         owner = msg.sender;
     }
 
+    /**
+     * @notice Send ETH to user
+     * Only aggregator can call this function
+     */
     function sendAsset(address payable user, uint256 amount) public onlyOwner {
         _transferETH(user, amount);
     }
