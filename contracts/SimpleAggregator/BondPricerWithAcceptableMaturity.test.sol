@@ -2,9 +2,7 @@
 pragma solidity 0.7.1;
 import "./BondPricerWithAcceptableMaturity.sol";
 
-contract testBondPricerWithAcceptableMaturity is
-    BondPricerWithAcceptableMaturity
-{
+contract testBondPricerWithAcceptableMaturity is BondPricerWithAcceptableMaturity {
     constructor(address originalBondPricerAddress)
         BondPricerWithAcceptableMaturity(originalBondPricerAddress)
     {}

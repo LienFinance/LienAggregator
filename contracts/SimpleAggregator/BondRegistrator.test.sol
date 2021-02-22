@@ -23,14 +23,13 @@ contract testBondRegistrator is BondRegistrator {
         uint64 maturity,
         bytes32 SBTId
     ) external {
-        uint256 bondGroupID =
-            registerBondGroup(
-                bondMaker,
-                callStrikePrice,
-                sbtStrikePrice,
-                maturity,
-                SBTId
-            );
+        uint256 bondGroupID = registerBondGroup(
+            bondMaker,
+            callStrikePrice,
+            sbtStrikePrice,
+            maturity,
+            SBTId
+        );
         emit Number(bondGroupID);
     }
 

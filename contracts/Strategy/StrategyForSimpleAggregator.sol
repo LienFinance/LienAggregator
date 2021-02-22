@@ -6,6 +6,7 @@ import "../Interfaces/ExchangeInterface.sol";
 import "../BondToken_and_GDOTC/bondMaker/BondMakerInterface.sol";
 import "../Interfaces/SimpleAggragatorInterface.sol";
 import "../BondToken_and_GDOTC/util/Polyline.sol";
+// AUDIT-FIX: SFS-01 Not-Fixed: cannot fix
 import "../../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../../node_modules/@openzeppelin/contracts/utils/SafeCast.sol";
 
@@ -18,10 +19,13 @@ contract StrategyForSimpleAggregator is SimpleStrategyInterface, Polyline {
         int32 downwardDifference;
     }
     uint256 constant WEEK_LENGTH = 3;
+    // AUDIT-FIX: SFS-04 Not-Fixed:
     mapping(bytes32 => address[]) public aggregators;
     mapping(bytes32 => FeeInfo) public feeBases;
-    uint256 immutable TERM_INTERVAL;
-    uint256 immutable TERM_CORRECTION_FACTOR;
+    // AUDIT-FIX: SFS-02
+    uint256 internal immutable TERM_INTERVAL;
+    // AUDIT-FIX: SFS-03
+    uint256 internal immutable TERM_CORRECTION_FACTOR;
     int16 constant INITIAL_FEEBASE = 250;
 
     constructor(uint256 termInterval, uint256 termCF) {
@@ -32,17 +36,9 @@ contract StrategyForSimpleAggregator is SimpleStrategyInterface, Polyline {
     /**
      * @notice Return next maturity.(Default: Friday 3 p.m UTC within 3 weeks )
      */
-    function calcNextMaturity()
-        public
-        view
-        override
-        returns (uint256 nextTimeStamp)
-    {
-        uint256 week =
-            (block.timestamp - TERM_CORRECTION_FACTOR).div(TERM_INTERVAL);
-        nextTimeStamp =
-            ((week + WEEK_LENGTH) * TERM_INTERVAL) +
-            (TERM_CORRECTION_FACTOR);
+    function calcNextMaturity() public view override returns (uint256 nextTimeStamp) {
+        uint256 week = (block.timestamp - TERM_CORRECTION_FACTOR).div(TERM_INTERVAL);
+        nextTimeStamp = ((week + WEEK_LENGTH) * TERM_INTERVAL) + (TERM_CORRECTION_FACTOR);
     }
 
     /**
@@ -70,46 +66,28 @@ contract StrategyForSimpleAggregator is SimpleStrategyInterface, Polyline {
         )
     {
         price = calcRoundPrice(price, priceUnit, 1);
-        uint256 baseAmount =
-            _getBaseAmount(SimpleAggregatorInterface(aggregatorAddress));
+        uint256 baseAmount = _getBaseAmount(SimpleAggregatorInterface(aggregatorAddress));
         for (uint64 i = 0; i < bondGroupList.length; i++) {
-            (issueAmount, ) = _getLBTStrikePrice(
-                bondMaker,
-                bondGroupList[i],
-                isReversedOracle
-            );
+            (issueAmount, ) = _getLBTStrikePrice(bondMaker, bondGroupList[i], isReversedOracle);
             // If Call option strike price is different from current price by priceUnit * 5,
             // this bond group becomes target of burn.
-            if (
-                (issueAmount > price + priceUnit * 5 ||
-                    issueAmount < price - priceUnit * 5)
-            ) {
-                uint256 balance =
-                    _getMinBondAmount(
-                        bondMaker,
-                        bondGroupList[i],
-                        aggregatorAddress
-                    );
+            // AUDIT-FIX: SFS-05
+            if ((issueAmount > price + priceUnit * 5 || issueAmount < price.sub(priceUnit * 5))) {
+                uint256 balance = _getMinBondAmount(bondMaker, bondGroupList[i], aggregatorAddress);
                 // If `balance` is larger than that of current target bond group,
                 // change the target bond group
-                if (
-                    balance > baseAmount / 2 && balance > IDAndAmountOfBurn[1]
-                ) {
+                if (balance > baseAmount / 2 && balance > IDAndAmountOfBurn[1]) {
                     IDAndAmountOfBurn[0] = bondGroupList[i];
                     IDAndAmountOfBurn[1] = balance;
                 }
             }
         }
         {
-            uint256 balance =
-                _getMinBondAmount(
-                    bondMaker,
-                    issueBondGroupId,
-                    aggregatorAddress
-                );
+            uint256 balance = _getMinBondAmount(bondMaker, issueBondGroupId, aggregatorAddress);
             baseAmount = baseAmount + (IDAndAmountOfBurn[1] / 5);
             if (balance < baseAmount && issueBondGroupId != 0) {
-                issueAmount = baseAmount.sub(balance);
+                // AUDIT-FIX: SFS-06
+                issueAmount = baseAmount - balance;
             } else {
                 issueAmount = 0;
             }
@@ -128,21 +106,16 @@ contract StrategyForSimpleAggregator is SimpleStrategyInterface, Polyline {
         address oracleAddress,
         bool isReversedOracle
     ) public override {
-        bytes32 aggregatorID =
-            generateAggregatorID(owner, oracleAddress, isReversedOracle);
-        int16 feeBase =
-            _calcFeeBase(
-                currentFeeBase,
-                currentCollateralPerToken,
-                nextCollateralPerToken,
-                feeBases[aggregatorID].upwardDifference,
-                feeBases[aggregatorID].downwardDifference
-            );
-        address[] memory aggregatorAddresses = aggregators[aggregatorID];
-        require(
-            _isValidAggregator(aggregatorAddresses),
-            "sender is invalid aggregator"
+        bytes32 aggregatorID = generateAggregatorID(owner, oracleAddress, isReversedOracle);
+        int16 feeBase = _calcFeeBase(
+            currentFeeBase,
+            currentCollateralPerToken,
+            nextCollateralPerToken,
+            feeBases[aggregatorID].upwardDifference,
+            feeBases[aggregatorID].downwardDifference
         );
+        address[] memory aggregatorAddresses = aggregators[aggregatorID];
+        require(_isValidAggregator(aggregatorAddresses), "sender is invalid aggregator");
         if (feeBase < INITIAL_FEEBASE) {
             feeBases[aggregatorID].currentFeeBase = INITIAL_FEEBASE;
         } else if (feeBase >= 1000) {
@@ -162,24 +135,28 @@ contract StrategyForSimpleAggregator is SimpleStrategyInterface, Polyline {
         uint256 nextCollateralPerToken,
         int32 upwardDifference,
         int32 downwardDifference
-    ) internal pure returns (int16 feeBase) {
+    )
+        internal
+        pure
+        returns (
+            // AUDIT-FIX: SFS-09
+            int16
+        )
+    {
+        // AUDIT-FIX: SFS-07
         if (
-            nextCollateralPerToken.mul(100).div(105) > currentCollateralPerToken
+            nextCollateralPerToken.mul(100).div(105) > currentCollateralPerToken &&
+            currentFeeBase > downwardDifference
         ) {
             return int16(currentFeeBase - downwardDifference);
-        } else if (
-            nextCollateralPerToken.mul(105).div(100) < currentCollateralPerToken
-        ) {
+        } else if (nextCollateralPerToken.mul(105).div(100) < currentCollateralPerToken) {
+            // AUDIT-FIX: SFS-08 Not-Fixed: Unnecessary modification: current fee base is under 1000
             return int16(currentFeeBase + upwardDifference);
         }
         return currentFeeBase;
     }
 
-    function _isValidAggregator(address[] memory aggregatorAddresses)
-        internal
-        view
-        returns (bool)
-    {
+    function _isValidAggregator(address[] memory aggregatorAddresses) internal view returns (bool) {
         for (uint256 i = 0; i < aggregatorAddresses.length; i++) {
             if (aggregatorAddresses[i] == msg.sender) {
                 return true;
@@ -192,25 +169,18 @@ contract StrategyForSimpleAggregator is SimpleStrategyInterface, Polyline {
      * @notice Register addresses of aggregators for each type of price feed
      * @notice Aggregator owner should register aggregators for fee base registration
      */
+    // AUDIT-FIX: SFS-10
     function registerAggregators(
         address oracleAddress,
         bool isReversedOracle,
-        address[] memory aggregatorAddresses,
+        address[] calldata aggregatorAddresses,
         int32 upwardDifference,
         int32 downwardDifference
-    ) public {
-        bytes32 aggregatorID =
-            generateAggregatorID(msg.sender, oracleAddress, isReversedOracle);
-        require(
-            aggregators[aggregatorID].length == 0,
-            "This aggregator ID is already registered"
-        );
+    ) external {
+        bytes32 aggregatorID = generateAggregatorID(msg.sender, oracleAddress, isReversedOracle);
+        require(aggregators[aggregatorID].length == 0, "This aggregator ID is already registered");
         aggregators[aggregatorID] = aggregatorAddresses;
-        feeBases[aggregatorID] = FeeInfo(
-            INITIAL_FEEBASE,
-            upwardDifference,
-            downwardDifference
-        );
+        feeBases[aggregatorID] = FeeInfo(INITIAL_FEEBASE, upwardDifference, downwardDifference);
     }
 
     function generateAggregatorID(
@@ -249,8 +219,8 @@ contract StrategyForSimpleAggregator is SimpleStrategyInterface, Polyline {
         uint256 currentPriceE8,
         uint64 priceUnit,
         bool isReversedOracle
-    ) external pure override returns (uint256) {
-        uint256 strikePrice;
+    ) external pure override returns (uint256 strikePrice) {
+        // AUDIT-FIX: SFS-11
         if (isReversedOracle) {
             strikePrice = _getReversedValue(
                 calcRoundPrice(currentPriceE8 * 2, priceUnit, 1),
@@ -267,8 +237,7 @@ contract StrategyForSimpleAggregator is SimpleStrategyInterface, Polyline {
         address oracleAddress,
         bool isReversedOracle
     ) public view override returns (int16) {
-        bytes32 aggregatorID =
-            generateAggregatorID(owner, oracleAddress, isReversedOracle);
+        bytes32 aggregatorID = generateAggregatorID(owner, oracleAddress, isReversedOracle);
         if (feeBases[aggregatorID].currentFeeBase == 0) {
             return INITIAL_FEEBASE;
         }
@@ -290,21 +259,13 @@ contract StrategyForSimpleAggregator is SimpleStrategyInterface, Polyline {
     /**
      * @dev Calculate base bond amount of issue/burn
      */
-    function _getBaseAmount(SimpleAggregatorInterface aggregator)
-        internal
-        view
-        returns (uint256)
-    {
+    function _getBaseAmount(SimpleAggregatorInterface aggregator) internal view returns (uint256) {
         uint256 collateralAmount = aggregator.getCollateralAmount();
         int16 decimalGap = int16(aggregator.getCollateralDecimal()) - 8;
         return _applyDecimalGap(collateralAmount.div(5), decimalGap);
     }
 
-    function _applyDecimalGap(uint256 amount, int16 decimalGap)
-        internal
-        pure
-        returns (uint256)
-    {
+    function _applyDecimalGap(uint256 amount, int16 decimalGap) internal pure returns (uint256) {
         if (decimalGap < 0) {
             return amount.mul(10**uint256(decimalGap * -1));
         } else {
@@ -333,8 +294,7 @@ contract StrategyForSimpleAggregator is SimpleStrategyInterface, Polyline {
             int32 downwardDifference
         )
     {
-        bytes32 aggregatorID =
-            generateAggregatorID(owner, oracleAddress, isReversedOracle);
+        bytes32 aggregatorID = generateAggregatorID(owner, oracleAddress, isReversedOracle);
         return (
             feeBases[aggregatorID].currentFeeBase,
             feeBases[aggregatorID].upwardDifference,
@@ -351,14 +311,12 @@ contract StrategyForSimpleAggregator is SimpleStrategyInterface, Polyline {
         bool isReversedOracle
     ) public view returns (uint128, address) {
         (bytes32[] memory bondIDs, ) = bondMaker.getBondGroup(bondGroupID);
-        (address bondAddress, , , bytes32 fnMapID) =
-            bondMaker.getBond(bondIDs[1]);
+        (address bondAddress, , , bytes32 fnMapID) = bondMaker.getBond(bondIDs[1]);
         bytes memory fnMap = bondMaker.getFnMap(fnMapID);
         uint256[] memory zippedLines = decodePolyline(fnMap);
         LineSegment memory secondLine = unzipLineSegment(zippedLines[1]);
         return (
-            _getReversedValue(uint256(secondLine.left.x), isReversedOracle)
-                .toUint128(),
+            _getReversedValue(uint256(secondLine.left.x), isReversedOracle).toUint128(),
             bondAddress
         );
     }
@@ -374,8 +332,7 @@ contract StrategyForSimpleAggregator is SimpleStrategyInterface, Polyline {
         (bytes32[] memory bondIDs, ) = bondMaker.getBondGroup(bondGroupID);
         for (uint256 i = 0; i < bondIDs.length; i++) {
             (address bondAddress, , , ) = bondMaker.getBond(bondIDs[i]);
-            uint256 bondBalance =
-                IERC20(bondAddress).balanceOf(aggregatorAddress);
+            uint256 bondBalance = IERC20(bondAddress).balanceOf(aggregatorAddress);
             if (i == 0) {
                 balance = bondBalance;
             } else if (balance > bondBalance) {

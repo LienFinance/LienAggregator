@@ -14,18 +14,20 @@ contract BondTokenFactory {
         uint8 decimals
     ) external returns (address createdBondAddress) {
         if (collateralizedTokenAddress == ETH) {
-            BondTokenCollateralizedEth bond =
-                new BondTokenCollateralizedEth(name, symbol, decimals);
+            BondTokenCollateralizedEth bond = new BondTokenCollateralizedEth(
+                name,
+                symbol,
+                decimals
+            );
             bond.transferOwnership(msg.sender);
             return address(bond);
         } else {
-            BondTokenCollateralizedErc20 bond =
-                new BondTokenCollateralizedErc20(
-                    ERC20(collateralizedTokenAddress),
-                    name,
-                    symbol,
-                    decimals
-                );
+            BondTokenCollateralizedErc20 bond = new BondTokenCollateralizedErc20(
+                ERC20(collateralizedTokenAddress),
+                name,
+                symbol,
+                decimals
+            );
             bond.transferOwnership(msg.sender);
             return address(bond);
         }

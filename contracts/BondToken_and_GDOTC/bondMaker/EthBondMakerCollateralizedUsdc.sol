@@ -52,39 +52,21 @@ contract EthBondMakerCollateralizedUsdc is BondMakerCollateralizedErc20 {
         LineSegment[] memory segments = _registeredFnMap[fnMapID];
         uint64 sbtStrikePrice = _getSbtStrikePrice(segments);
         uint64 lbtStrikePrice = _getLbtStrikePrice(segments);
-        uint64 sbtStrikePriceInverseE0 =
-            sbtStrikePrice != 0
-                ? uint64(10)**DECIMALS_OF_ORACLE_PRICE / sbtStrikePrice
-                : 0;
-        uint64 lbtStrikePriceInverseE0 =
-            lbtStrikePrice != 0
-                ? uint64(10)**DECIMALS_OF_ORACLE_PRICE / lbtStrikePrice
-                : 0;
+        uint64 sbtStrikePriceInverseE0 = sbtStrikePrice != 0
+            ? uint64(10)**DECIMALS_OF_ORACLE_PRICE / sbtStrikePrice
+            : 0;
+        uint64 lbtStrikePriceInverseE0 = lbtStrikePrice != 0
+            ? uint64(10)**DECIMALS_OF_ORACLE_PRICE / lbtStrikePrice
+            : 0;
 
         if (sbtStrikePrice != 0) {
             return
-                BOND_TOKEN_NAMER.genBondTokenName(
-                    "SBT",
-                    "SBT",
-                    maturity,
-                    sbtStrikePriceInverseE0
-                );
+                BOND_TOKEN_NAMER.genBondTokenName("SBT", "SBT", maturity, sbtStrikePriceInverseE0);
         } else if (lbtStrikePrice != 0) {
             return
-                BOND_TOKEN_NAMER.genBondTokenName(
-                    "LBT",
-                    "LBT",
-                    maturity,
-                    lbtStrikePriceInverseE0
-                );
+                BOND_TOKEN_NAMER.genBondTokenName("LBT", "LBT", maturity, lbtStrikePriceInverseE0);
         } else {
-            return
-                BOND_TOKEN_NAMER.genBondTokenName(
-                    "IMT",
-                    "Immortal Option",
-                    maturity,
-                    0
-                );
+            return BOND_TOKEN_NAMER.genBondTokenName("IMT", "Immortal Option", maturity, 0);
         }
     }
 }

@@ -10,9 +10,7 @@ abstract contract CustomGeneralizedPricing is BondPricerInterface {
     GeneralizedPricing internal immutable _originalBondPricerAddress;
 
     constructor(address originalBondPricerAddress) {
-        _originalBondPricerAddress = GeneralizedPricing(
-            originalBondPricerAddress
-        );
+        _originalBondPricerAddress = GeneralizedPricing(originalBondPricerAddress);
     }
 
     function calcPriceAndLeverage(
@@ -31,26 +29,12 @@ abstract contract CustomGeneralizedPricing is BondPricerInterface {
         );
         if (bondType == BondType.LBT_SHAPE) {
             require(
-                _isAcceptableLbt(
-                    points,
-                    spotPrice,
-                    volatilityE8,
-                    untilMaturity,
-                    price,
-                    leverageE8
-                ),
+                _isAcceptableLbt(points, spotPrice, volatilityE8, untilMaturity, price, leverageE8),
                 "the liquid bond is not acceptable"
             );
         } else if (bondType == BondType.SBT_SHAPE) {
             require(
-                _isAcceptableSbt(
-                    points,
-                    spotPrice,
-                    volatilityE8,
-                    untilMaturity,
-                    price,
-                    leverageE8
-                ),
+                _isAcceptableSbt(points, spotPrice, volatilityE8, untilMaturity, price, leverageE8),
                 "the solid bond is not acceptable"
             );
         } else if (bondType == BondType.TRIANGLE) {
@@ -92,11 +76,7 @@ abstract contract CustomGeneralizedPricing is BondPricerInterface {
         }
     }
 
-    function originalBondPricer()
-        external
-        view
-        returns (address originalBondPricerAddress)
-    {
+    function originalBondPricer() external view returns (address originalBondPricerAddress) {
         originalBondPricerAddress = address(_originalBondPricerAddress);
     }
 

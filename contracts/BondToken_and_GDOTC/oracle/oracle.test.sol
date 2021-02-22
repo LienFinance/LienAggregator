@@ -46,59 +46,29 @@ contract TestOracle is Time, OracleInterface {
         return _rateETH2USD.length - 1;
     }
 
-    function latestPrice()
-        external
-        view
-        override
-        returns (uint256 rateETH2USD)
-    {
+    function latestPrice() external view override returns (uint256 rateETH2USD) {
         return getPrice(latestId());
     }
 
-    function latestTimestamp()
-        external
-        view
-        override
-        returns (uint256 timestamp)
-    {
+    function latestTimestamp() external view override returns (uint256 timestamp) {
         return getTimestamp(latestId());
     }
 
-    function getPrice(uint256 id)
-        public
-        view
-        override
-        returns (uint256 rateETH2USD)
-    {
+    function getPrice(uint256 id) public view override returns (uint256 rateETH2USD) {
         require(id <= latestId(), "given ID exceeds latest ID");
         return _rateETH2USD[id];
     }
 
-    function getTimestamp(uint256 id)
-        public
-        view
-        override
-        returns (uint256 timestamp)
-    {
+    function getTimestamp(uint256 id) public view override returns (uint256 timestamp) {
         require(id <= latestId(), "given ID exceeds latest ID");
         return _timestamp[id];
     }
 
-    function getVolatility()
-        external
-        view
-        override
-        returns (uint256 volatility)
-    {
+    function getVolatility() external view override returns (uint256 volatility) {
         return _volatility[latestId()];
     }
 
-    function lastCalculatedVolatility()
-        external
-        view
-        override
-        returns (uint256 volatility)
-    {
+    function lastCalculatedVolatility() external view override returns (uint256 volatility) {
         return _volatility[_rateETH2USD.length - 1];
     }
 }

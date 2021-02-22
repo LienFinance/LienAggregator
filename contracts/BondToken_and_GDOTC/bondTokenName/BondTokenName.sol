@@ -23,43 +23,23 @@ contract BondTokenName is BondTokenNameInterface {
         string memory longNamePrefix,
         uint256 maturity,
         uint256 solidStrikePriceE0
-    )
-        public
-        pure
-        override
-        returns (string memory shortName, string memory longName)
-    {
+    ) public pure override returns (string memory shortName, string memory longName) {
         (uint256 year, uint256 month, uint256 day) = maturity.timestampToDate();
         string memory yearStr = year.toString(4);
         string memory monthStr = month.toString(2);
         string memory dayStr = day.toString(2);
         {
-            string memory shortDateStr =
-                string(abi.encodePacked(monthStr, dayStr));
+            string memory shortDateStr = string(abi.encodePacked(monthStr, dayStr));
             string memory shortStrikePriceStr = solidStrikePriceE0.toString(4);
 
             shortName = string(
-                abi.encodePacked(
-                    shortNamePrefix,
-                    shortDateStr,
-                    "",
-                    shortStrikePriceStr
-                )
+                abi.encodePacked(shortNamePrefix, shortDateStr, "", shortStrikePriceStr)
             );
         }
         {
-            string memory dateStr =
-                string(abi.encodePacked(yearStr, monthStr, dayStr));
+            string memory dateStr = string(abi.encodePacked(yearStr, monthStr, dayStr));
             string memory strikePriceStr = solidStrikePriceE0.toString();
-            longName = string(
-                abi.encodePacked(
-                    longNamePrefix,
-                    " ",
-                    dateStr,
-                    " ",
-                    strikePriceStr
-                )
-            );
+            longName = string(abi.encodePacked(longNamePrefix, " ", dateStr, " ", strikePriceStr));
         }
     }
 
@@ -67,12 +47,7 @@ contract BondTokenName is BondTokenNameInterface {
         uint256 maturity,
         uint256 solidStrikePriceE0,
         uint256 rateLBTWorthlessE0
-    )
-        public
-        pure
-        override
-        returns (string memory shortName, string memory longName)
-    {
+    ) public pure override returns (string memory shortName, string memory longName) {
         if (solidStrikePriceE0 != 0) {
             return genBondTokenName("SBT", "SBT", maturity, solidStrikePriceE0);
         } else if (rateLBTWorthlessE0 != 0) {

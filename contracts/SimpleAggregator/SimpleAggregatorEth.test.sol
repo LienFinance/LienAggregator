@@ -3,9 +3,7 @@ pragma solidity 0.7.1;
 import "./SimpleAggregatorCollateralizedEth.sol";
 pragma experimental ABIEncoderV2;
 
-contract testSimpleAggregatorCollateralizedEth is
-    SimpleAggregatorCollateralizedEth
-{
+contract testSimpleAggregatorCollateralizedEth is SimpleAggregatorCollateralizedEth {
     constructor(
         LatestPriceOracleInterface _ethOracle,
         BondPricerWithAcceptableMaturity _pricer,
@@ -30,10 +28,7 @@ contract testSimpleAggregatorCollateralizedEth is
     {}
 
     function changeIsLiquidated() public {
-        liquidationData[currentTerm].isLiquidated = !liquidationData[
-            currentTerm
-        ]
-            .isLiquidated;
+        liquidationData[currentTerm].isLiquidated = !liquidationData[currentTerm].isLiquidated;
     }
 
     /*
@@ -73,9 +68,7 @@ contract testSimpleAggregatorCollateralizedEth is
         uint256 _totalShare,
         uint256
     ) public {
-        shareData[index + 1].totalCollateralPerToken = uint128(
-            _collateralPerToken
-        );
+        shareData[index + 1].totalCollateralPerToken = uint128(_collateralPerToken);
         shareData[index + 1].totalShare = uint128(_totalShare);
     }
 
@@ -85,27 +78,20 @@ contract testSimpleAggregatorCollateralizedEth is
         uint64 maturity,
         uint64 priviousMaturity
     ) external {
-        uint32 returnValue =
-            _liquidateBondGroup(
-                bondGroupId,
-                liquidateBondNumber,
-                maturity,
-                priviousMaturity
-            );
+        uint32 returnValue = _liquidateBondGroup(
+            bondGroupId,
+            liquidateBondNumber,
+            maturity,
+            priviousMaturity
+        );
         emit Number(uint256(returnValue));
     }
 
-    function addBondGroup(uint256 bondGroupId, uint256 callStrikePriceInEthUSD)
-        external
-    {
+    function addBondGroup(uint256 bondGroupId, uint256 callStrikePriceInEthUSD) external {
         _addBondGroup(bondGroupId, callStrikePriceInEthUSD);
     }
 
-    function getSuitableBondGroup(uint256 currentPriceE8)
-        external
-        view
-        returns (uint256)
-    {
+    function getSuitableBondGroup(uint256 currentPriceE8) external view returns (uint256) {
         return _getSuitableBondGroup(currentPriceE8);
     }
 
@@ -113,10 +99,7 @@ contract testSimpleAggregatorCollateralizedEth is
         _updatePriceUnit(currentPriceE8);
     }
 
-    function addSuitableBondGroup(uint256 currentPriceE8)
-        external
-        returns (uint256)
-    {
+    function addSuitableBondGroup(uint256 currentPriceE8) external returns (uint256) {
         return _addSuitableBondGroup(currentPriceE8);
     }
 }

@@ -14,7 +14,6 @@ contract UseVolatilityOracle {
     }
 
     function _getVolatility(uint256 maturity) internal view returns (uint256) {
-        return
-            volOracle.getVolatility(maturity.sub(block.timestamp).toUint64());
+        return volOracle.getVolatility(maturity.sub(block.timestamp).toUint64());
     }
 }

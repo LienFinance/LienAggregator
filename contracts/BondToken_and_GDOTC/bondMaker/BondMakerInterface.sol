@@ -19,11 +19,7 @@ interface BondMakerInterface {
         bytes32[] bondIDs
     );
 
-    event LogIssueNewBonds(
-        uint256 indexed bondGroupID,
-        address indexed issuer,
-        uint256 amount
-    );
+    event LogIssueNewBonds(uint256 indexed bondGroupID, address indexed issuer, uint256 amount);
 
     event LogReverseBondGroupToCollateral(
         uint256 indexed bondGroupID,
@@ -38,11 +34,7 @@ interface BondMakerInterface {
         uint256 amount
     );
 
-    event LogLiquidateBond(
-        bytes32 indexed bondID,
-        uint128 rateNumerator,
-        uint128 rateDenominator
-    );
+    event LogLiquidateBond(bytes32 indexed bondID, uint128 rateNumerator, uint128 rateDenominator);
 
     function registerNewBond(uint256 maturity, bytes calldata fnMap)
         external
@@ -52,10 +44,9 @@ interface BondMakerInterface {
             bytes32 fnMapID
         );
 
-    function registerNewBondGroup(
-        bytes32[] calldata bondIDList,
-        uint256 maturity
-    ) external returns (uint256 bondGroupID);
+    function registerNewBondGroup(bytes32[] calldata bondIDList, uint256 maturity)
+        external
+        returns (uint256 bondGroupID);
 
     function reverseBondGroupToCollateral(uint256 bondGroupID, uint256 amount)
         external
@@ -96,20 +87,14 @@ interface BondMakerInterface {
             bytes32 fnMapID
         );
 
-    function getFnMap(bytes32 fnMapID)
-        external
-        view
-        returns (bytes memory fnMap);
+    function getFnMap(bytes32 fnMapID) external view returns (bytes memory fnMap);
 
     function getBondGroup(uint256 bondGroupID)
         external
         view
         returns (bytes32[] memory bondIDs, uint256 maturity);
 
-    function generateFnMapID(bytes calldata fnMap)
-        external
-        view
-        returns (bytes32 fnMapID);
+    function generateFnMapID(bytes calldata fnMap) external view returns (bytes32 fnMapID);
 
     function generateBondID(uint256 maturity, bytes calldata fnMap)
         external

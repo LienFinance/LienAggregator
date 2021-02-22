@@ -4,7 +4,8 @@ import "./StrategyForSimpleAggregator.sol";
 
 contract StrategyForSimpleAggregatorETH is StrategyForSimpleAggregator {
     using SafeMath for uint256;
-    ExchangeInterface immutable exchange;
+    // AUDIT-FIX: SFA-01
+    ExchangeInterface internal immutable exchange;
 
     constructor(
         ExchangeInterface _exchange,
@@ -12,6 +13,8 @@ contract StrategyForSimpleAggregatorETH is StrategyForSimpleAggregator {
         uint256 termCF
     ) StrategyForSimpleAggregator(termInterval, termCF) {
         exchange = _exchange;
+        // AUDIT-FIX: SFA-02
+        require(address(_exchange) != address(0), "_exchange cannot be zero");
     }
 
     /**
@@ -38,12 +41,8 @@ contract StrategyForSimpleAggregatorETH is StrategyForSimpleAggregator {
             uint256[2] memory IDAndAmountOfBurn
         )
     {
-        if (
-            SimpleAggregatorInterface(aggregatorAddress)
-                .getCollateralAddress() == address(0)
-        ) {
-            uint256 currentDepositAmount =
-                exchange.ethAllowance(aggregatorAddress);
+        if (SimpleAggregatorInterface(aggregatorAddress).getCollateralAddress() == address(0)) {
+            uint256 currentDepositAmount = exchange.ethAllowance(aggregatorAddress);
             uint256 baseETHAmount = aggregatorAddress.balance.div(10);
             if (currentDepositAmount < baseETHAmount) {
                 ethAmount = baseETHAmount.sub(currentDepositAmount);

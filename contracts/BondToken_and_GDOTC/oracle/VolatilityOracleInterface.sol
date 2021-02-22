@@ -2,8 +2,5 @@
 pragma solidity 0.7.1;
 
 interface VolatilityOracleInterface {
-    function getVolatility(uint64 untilMaturity)
-        external
-        view
-        returns (uint64 volatilityE8);
+    function getVolatility(uint64 untilMaturity) external view returns (uint64 volatilityE8);
 }

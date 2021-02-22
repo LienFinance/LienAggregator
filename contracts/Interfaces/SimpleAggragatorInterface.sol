@@ -8,21 +8,13 @@ interface SimpleAggregatorInterface {
         uint64 value;
     }
 
-    enum AggregatorPhase {
-        BEFORE_START,
-        ACTIVE,
-        COOL_TIME,
-        AFTER_MATURITY,
-        EXPIRED
-    }
+    enum AggregatorPhase {BEFORE_START, ACTIVE, COOL_TIME, AFTER_MATURITY, EXPIRED}
 
     function renewMaturity() external;
 
     function removeLiquidity(uint128 amount) external returns (bool success);
 
-    function settleTokens()
-        external
-        returns (uint256 unsentETH, uint256 unsentToken);
+    function settleTokens() external returns (uint256 unsentETH, uint256 unsentToken);
 
     function changeSpread() external;
 
@@ -48,9 +40,7 @@ interface SimpleAggregatorInterface {
 
     function totalSupply() external view returns (uint256);
 
-    function transfer(address _to, uint256 _value)
-        external
-        returns (bool success);
+    function transfer(address _to, uint256 _value) external returns (bool success);
 
     function balanceOf(address _owner) external view returns (uint256 balance);
 
@@ -60,14 +50,9 @@ interface SimpleAggregatorInterface {
         uint256 _value
     ) external returns (bool success);
 
-    function approve(address _spender, uint256 _value)
-        external
-        returns (bool success);
+    function approve(address _spender, uint256 _value) external returns (bool success);
 
-    function allowance(address _owner, address _spender)
-        external
-        view
-        returns (uint256 remaining);
+    function allowance(address _owner, address _spender) external view returns (uint256 remaining);
 
     function getExpectedBalance(address user, bool hasReservation)
         external
@@ -134,10 +119,7 @@ interface SimpleAggregatorInterface {
         view
         returns (uint128 totalShare, uint128 totalCollateralPerToken);
 
-    function getCollateralPerToken(uint256 term)
-        external
-        view
-        returns (uint256);
+    function getCollateralPerToken(uint256 term) external view returns (uint256);
 
     function getBondGroupIdFromStrikePrice(uint256 term, uint256 strikePrice)
         external

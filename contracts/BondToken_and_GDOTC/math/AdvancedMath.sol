@@ -23,10 +23,7 @@ abstract contract AdvancedMath {
      * @dev Calcurate an approximate value of the square root of x by Babylonian method.
      */
     function _sqrt(int256 x) internal pure returns (int256 y) {
-        require(
-            x >= 0,
-            "cannot calculate the square root of a negative number"
-        );
+        require(x >= 0, "cannot calculate the square root of a negative number");
         int256 z = (x + 1) / 2;
         y = x;
         while (z < y) {
@@ -38,11 +35,7 @@ abstract contract AdvancedMath {
     /**
      * @dev Returns log(x) for any positive x.
      */
-    function _logTaylor(int256 inputE4)
-        internal
-        pure
-        returns (int256 outputE4)
-    {
+    function _logTaylor(int256 inputE4) internal pure returns (int256 outputE4) {
         require(inputE4 > 1, "input should be positive number");
         int256 inputE8 = inputE4 * 10**4;
         // input x for _logTayler1 is adjusted to 1/e < x < 1.
@@ -63,11 +56,7 @@ abstract contract AdvancedMath {
      * @dev log(x + 1) = x - 1/2 x^2 + 1/3 x^3 - 1/4 x^4 + 1/5 x^5
      *                     - 1/6 x^6 + 1/7 x^7 - 1/8 x^8 + ...
      */
-    function _logTaylor1(int256 inputE4)
-        internal
-        pure
-        returns (int256 outputE4)
-    {
+    function _logTaylor1(int256 inputE4) internal pure returns (int256 outputE4) {
         outputE4 =
             inputE4 -
             inputE4**2 /
@@ -92,26 +81,18 @@ abstract contract AdvancedMath {
      * @dev Abramowitz and Stegun, Handbook of Mathematical Functions (1964)
      * http://people.math.sfu.ca/~cbm/aands/
      */
-    function _calcPnorm(int256 inputE4)
-        internal
-        pure
-        returns (int256 outputE8)
-    {
-        require(
-            inputE4 < 440 * 10**4 && inputE4 > -440 * 10**4,
-            "input is too large"
-        );
+    function _calcPnorm(int256 inputE4) internal pure returns (int256 outputE8) {
+        require(inputE4 < 440 * 10**4 && inputE4 > -440 * 10**4, "input is too large");
         int256 _inputE4 = inputE4 > 0 ? inputE4 : inputE4 * (-1);
         int256 t = 10**16 / (10**8 + (p * _inputE4) / 10**4);
         int256 X2 = (inputE4 * inputE4) / 2;
-        int256 exp2X2 =
-            10**8 +
-                X2 +
-                (X2**2 / (2 * 10**8)) +
-                (X2**3 / (6 * 10**16)) +
-                (X2**4 / (24 * 10**24)) +
-                (X2**5 / (120 * 10**32)) +
-                (X2**6 / (720 * 10**40));
+        int256 exp2X2 = 10**8 +
+            X2 +
+            (X2**2 / (2 * 10**8)) +
+            (X2**3 / (6 * 10**16)) +
+            (X2**4 / (24 * 10**24)) +
+            (X2**5 / (120 * 10**32)) +
+            (X2**6 / (720 * 10**40));
         int256 Z = (10**24 / exp2X2) / SQRT_2PI_E8;
         int256 y = (b5 * t) / 10**8;
         y = ((y + b4) * t) / 10**8;

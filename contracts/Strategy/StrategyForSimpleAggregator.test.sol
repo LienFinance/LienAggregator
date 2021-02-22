@@ -14,26 +14,14 @@ contract testSimpleStrategy is StrategyForSimpleAggregatorETH {
         uint256 bondGroupID,
         bool reverseOracle
     ) public view returns (uint128 strikePrice, address LBTAddress) {
-        (strikePrice, LBTAddress) = _getLBTStrikePrice(
-            _bondMaker,
-            bondGroupID,
-            reverseOracle
-        );
+        (strikePrice, LBTAddress) = _getLBTStrikePrice(_bondMaker, bondGroupID, reverseOracle);
     }
 
-    function getBaseAmount(SimpleAggregatorInterface aggregator)
-        external
-        view
-        returns (uint256)
-    {
+    function getBaseAmount(SimpleAggregatorInterface aggregator) external view returns (uint256) {
         return _getBaseAmount(aggregator);
     }
 
-    function applyDecimalGap(uint256 amount, int16 decimalGap)
-        external
-        pure
-        returns (uint256)
-    {
+    function applyDecimalGap(uint256 amount, int16 decimalGap) external pure returns (uint256) {
         return _applyDecimalGap(amount, decimalGap);
     }
 

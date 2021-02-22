@@ -22,10 +22,7 @@ contract BondTokenCollateralizedErc20 is BondToken {
         return COLLATERALIZED_TOKEN.decimals();
     }
 
-    function _sendCollateralTo(address receiver, uint256 amount)
-        internal
-        override
-    {
+    function _sendCollateralTo(address receiver, uint256 amount) internal override {
         COLLATERALIZED_TOKEN.safeTransfer(receiver, amount);
     }
 }

@@ -5,10 +5,7 @@ import "../BondToken_and_GDOTC/util/TransferETH.sol";
 contract ReserveEth is TransferETH {
     address owner;
     modifier onlyOwner() {
-        require(
-            msg.sender == owner,
-            "Error: Only owner can execute this function"
-        );
+        require(msg.sender == owner, "Error: Only owner can execute this function");
         _;
     }
 

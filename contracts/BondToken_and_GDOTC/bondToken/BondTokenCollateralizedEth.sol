@@ -15,10 +15,7 @@ contract BondTokenCollateralizedEth is BondToken, TransferETH {
         return 18;
     }
 
-    function _sendCollateralTo(address receiver, uint256 amount)
-        internal
-        override
-    {
+    function _sendCollateralTo(address receiver, uint256 amount) internal override {
         _transferETH(payable(receiver), amount);
     }
 }

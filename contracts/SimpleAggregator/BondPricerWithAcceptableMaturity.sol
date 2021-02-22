@@ -6,13 +6,10 @@ import "../BondToken_and_GDOTC/bondPricer/CustomGeneralizedPricing.sol";
 import "../../node_modules/@openzeppelin/contracts/access/Ownable.sol";
 import "../BondToken_and_GDOTC/util/Time.sol";
 
-contract BondPricerWithAcceptableMaturity is
-    CustomGeneralizedPricing,
-    Ownable,
-    Time
-{
+contract BondPricerWithAcceptableMaturity is CustomGeneralizedPricing, Ownable, Time {
     using SafeMath for uint256;
 
+    // AUDIT-FIX: BPW-02 Not-Fixed:
     uint256 internal _acceptableMaturity;
 
     event LogUpdateAcceptableMaturity(uint256 acceptableMaturity);
@@ -23,18 +20,11 @@ contract BondPricerWithAcceptableMaturity is
         _updateAcceptableMaturity(0);
     }
 
-    function updateAcceptableMaturity(uint256 acceptableMaturity)
-        external
-        onlyOwner
-    {
+    function updateAcceptableMaturity(uint256 acceptableMaturity) external onlyOwner {
         _updateAcceptableMaturity(acceptableMaturity);
     }
 
-    function getAcceptableMaturity()
-        external
-        view
-        returns (uint256 acceptableMaturity)
-    {
+    function getAcceptableMaturity() external view returns (uint256 acceptableMaturity) {
         acceptableMaturity = _acceptableMaturity;
     }
 
@@ -111,22 +101,20 @@ contract BondPricerWithAcceptableMaturity is
         int256 ethVolatilityE8,
         int256 untilMaturity
     ) internal view {
+        // AUDIT-FIX: BPW-03
         require(
-            etherPriceE8 < 100000 * 10**8,
+            etherPriceE8 > 0 && etherPriceE8 < 100000 * 10**8,
             "ETH price should be between $0 and $100000"
         );
+        // AUDIT-FIX: BPW-04
         require(
-            ethVolatilityE8 < 10 * 10**8,
+            ethVolatilityE8 > 0 && ethVolatilityE8 < 10 * 10**8,
             "ETH volatility should be between 0% and 1000%"
         );
         require(untilMaturity >= 0, "the bond has been expired");
+        require(untilMaturity <= 12 weeks, "the bond maturity must be less than 12 weeks");
         require(
-            untilMaturity <= 12 weeks,
-            "the bond maturity must be less than 12 weeks"
-        );
-        require(
-            _getBlockTimestampSec().add(uint256(untilMaturity)) <=
-                _acceptableMaturity,
+            _getBlockTimestampSec().add(uint256(untilMaturity)) <= _acceptableMaturity,
             "the bond maturity must not exceed the current maturity of aggregator"
         );
     }

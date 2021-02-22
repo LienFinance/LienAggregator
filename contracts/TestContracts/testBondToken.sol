@@ -7,11 +7,7 @@ import "../BondToken_and_GDOTC/util/TransferETH.sol";
 contract testBondToken is ERC20, TransferETH {
     constructor() ERC20("TESTTOKEN", "test") {}
 
-    function mint(address account, uint256 amount)
-        public
-        payable
-        returns (bool success)
-    {
+    function mint(address account, uint256 amount) public payable returns (bool success) {
         _mint(account, amount);
         return true;
     }
@@ -37,11 +33,7 @@ contract testErc20BondToken is ERC20 {
         collateral = IERC20(_collateralAddress);
     }
 
-    function mint(address account, uint256 amount)
-        public
-        payable
-        returns (bool success)
-    {
+    function mint(address account, uint256 amount) public payable returns (bool success) {
         _mint(account, amount);
         return true;
     }

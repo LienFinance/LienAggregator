@@ -17,12 +17,7 @@ contract HistoricalVolatilityOracle is VolatilityOracleInterface {
     /**
      * @dev Returns the same value regardless of the duration until maturity.
      */
-    function getVolatility(uint64)
-        external
-        view
-        override
-        returns (uint64 volatilityE8)
-    {
+    function getVolatility(uint64) external view override returns (uint64 volatilityE8) {
         return _priceOracleContract.lastCalculatedVolatility().toUint64();
     }
 }

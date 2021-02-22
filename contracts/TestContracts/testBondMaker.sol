@@ -31,11 +31,7 @@ contract TestBaseBondMaker {
         return fnMapID;
     }
 
-    function zipLines(uint64[] memory points)
-        internal
-        pure
-        returns (uint256[] memory lines)
-    {
+    function zipLines(uint64[] memory points) internal pure returns (uint256[] memory lines) {
         lines = new uint256[](points.length / 4);
         for (uint256 i = 0; i < points.length / 4; i++) {
             uint256 x1U256 = uint256(points[4 * i]) << (64 + 64 + 64); // uint64
@@ -47,11 +43,7 @@ contract TestBaseBondMaker {
         }
     }
 
-    function getStrikePrice(bytes memory fnMap)
-        internal
-        pure
-        returns (uint256 strikePrice)
-    {
+    function getStrikePrice(bytes memory fnMap) internal pure returns (uint256 strikePrice) {
         uint256[] memory points = abi.decode(fnMap, (uint256[]));
         uint64 x1 = uint64(points[0] >> (64 + 64 + 64));
         uint64 y1 = uint64(points[0] >> (64 + 64));
@@ -73,11 +65,7 @@ contract TestBaseBondMaker {
         return keccak256(abi.encode(maturity, fnMapID));
     }
 
-    function generateFnMap(uint64[] memory points)
-        public
-        pure
-        returns (bytes memory)
-    {
+    function generateFnMap(uint64[] memory points) public pure returns (bytes memory) {
         uint256[] memory lines = zipLines(points);
         return abi.encode(lines);
     }
@@ -164,15 +152,8 @@ contract TestBaseBondMaker {
         );
     }
 
-    function getBondGroup(uint256 bondGroupID)
-        external
-        view
-        returns (bytes32[] memory, uint256)
-    {
-        return (
-            bondGroups[bondGroupID].bondIDs,
-            bondGroups[bondGroupID].maturity
-        );
+    function getBondGroup(uint256 bondGroupID) external view returns (bytes32[] memory, uint256) {
+        return (bondGroups[bondGroupID].bondIDs, bondGroups[bondGroupID].maturity);
     }
 }
 
@@ -193,8 +174,7 @@ contract TestBondMaker is TestBaseBondMaker, TransferETH {
                     BondToGroup[sbtBondID] = bondIndex;
                 } else {
                     testBondToken bond = new testBondToken();
-                    bytes32 bondID =
-                        keccak256(abi.encode(address(bond), bondIndex));
+                    bytes32 bondID = keccak256(abi.encode(address(bond), bondIndex));
                     BondStrikePrice[bondID] = 0;
                     bondGroups[bondIndex].bondIDs.push(bondID);
                     bondToAddress[bondID] = address(bond);
@@ -210,8 +190,7 @@ contract TestBondMaker is TestBaseBondMaker, TransferETH {
         bytes32[] memory fnMapIDs
     ) public {
         testBondToken sbtBond = new testBondToken();
-        bytes32 sbtBondID =
-            keccak256(abi.encode(address(sbtBond), fnMapIDs[0]));
+        bytes32 sbtBondID = keccak256(abi.encode(address(sbtBond), fnMapIDs[0]));
         for (uint256 k = 0; k < 2; k++) {
             bondIndex += 1;
             bondGroups[bondIndex].maturity = maturity;
@@ -226,8 +205,7 @@ contract TestBondMaker is TestBaseBondMaker, TransferETH {
                     bondIDTofnMapID[sbtBondID] = fnMapIDs[0];
                 } else {
                     testBondToken bond = new testBondToken();
-                    bytes32 bondID =
-                        keccak256(abi.encode(address(bond), fnMapIDs[j]));
+                    bytes32 bondID = keccak256(abi.encode(address(bond), fnMapIDs[j]));
                     BondStrikePrice[bondID] = 0;
                     bondGroups[bondIndex].bondIDs.push(bondID);
                     bondToAddress[bondID] = address(bond);
@@ -248,27 +226,16 @@ contract TestBondMaker is TestBaseBondMaker, TransferETH {
         bytes32[] memory outputBondIDs = bondGroups[outputBondGroupID].bondIDs;
         // bytes32 exceptionBondID = exceptionBonds[0];
         for (uint256 i = 1; i < inputBondIDs.length; i++) {
-            testBondToken(payable(bondToAddress[inputBondIDs[i]])).burn(
-                msg.sender,
-                amount
-            );
+            testBondToken(payable(bondToAddress[inputBondIDs[i]])).burn(msg.sender, amount);
         }
         for (uint256 i = 1; i < outputBondIDs.length; i++) {
-            testBondToken(payable(bondToAddress[outputBondIDs[i]])).mint(
-                msg.sender,
-                amount
-            );
+            testBondToken(payable(bondToAddress[outputBondIDs[i]])).mint(msg.sender, amount);
         }
 
         return true;
     }
 
-    function issueNewBonds(uint256 bondGroupID)
-        external
-        payable
-        virtual
-        returns (uint256 amount)
-    {
+    function issueNewBonds(uint256 bondGroupID) external payable virtual returns (uint256 amount) {
         bytes32[] memory bondIDs = bondGroups[bondGroupID].bondIDs;
         amount = msg.value / 10000000000;
         for (uint256 i = 0; i < bondIDs.length; i++) {
@@ -284,10 +251,7 @@ contract TestBondMaker is TestBaseBondMaker, TransferETH {
     {
         bytes32[] memory inputBondIDs = bondGroups[bondGroupID].bondIDs;
         for (uint256 i = 1; i < inputBondIDs.length; i++) {
-            testBondToken(payable(bondToAddress[inputBondIDs[i]])).burn(
-                msg.sender,
-                amount
-            );
+            testBondToken(payable(bondToAddress[inputBondIDs[i]])).burn(msg.sender, amount);
         }
         _transferETH(msg.sender, amount * 10**10);
         return true;
@@ -301,26 +265,13 @@ contract TestERC20BondMaker is TestBaseBondMaker {
         collateralAddress = _collateralAddress;
     }
 
-    function issueNewBonds(uint256 bondGroupID, uint256 amount)
-        external
-        returns (uint256)
-    {
-        IERC20(collateralAddress).transferFrom(
-            msg.sender,
-            address(this),
-            amount
-        );
+    function issueNewBonds(uint256 bondGroupID, uint256 amount) external returns (uint256) {
+        IERC20(collateralAddress).transferFrom(msg.sender, address(this), amount);
 
         bytes32[] memory bondIDs = bondGroups[bondGroupID].bondIDs;
         for (uint256 i = 0; i < bondIDs.length; i++) {
-            IERC20(collateralAddress).transfer(
-                bondToAddress[bondIDs[i]],
-                amount / bondIDs.length
-            );
-            testErc20BondToken(bondToAddress[bondIDs[i]]).mint(
-                msg.sender,
-                amount
-            );
+            IERC20(collateralAddress).transfer(bondToAddress[bondIDs[i]], amount / bondIDs.length);
+            testErc20BondToken(bondToAddress[bondIDs[i]]).mint(msg.sender, amount);
         }
         return amount;
     }
@@ -340,10 +291,8 @@ contract TestERC20BondMaker is TestBaseBondMaker {
                     bondToAddress[sbtBondID] = address(sbtBond);
                     BondToGroup[sbtBondID] = bondIndex;
                 } else {
-                    testErc20BondToken bond =
-                        new testErc20BondToken(collateralAddress);
-                    bytes32 bondID =
-                        keccak256(abi.encode(address(bond), bondIndex));
+                    testErc20BondToken bond = new testErc20BondToken(collateralAddress);
+                    bytes32 bondID = keccak256(abi.encode(address(bond), bondIndex));
                     BondStrikePrice[bondID] = 0;
                     bondGroups[bondIndex].bondIDs.push(bondID);
                     bondToAddress[bondID] = address(bond);
@@ -360,8 +309,7 @@ contract TestERC20BondMaker is TestBaseBondMaker {
         bytes32[] memory fnMapIDs
     ) public {
         testErc20BondToken sbtBond = new testErc20BondToken(collateralAddress);
-        bytes32 sbtBondID =
-            keccak256(abi.encode(address(sbtBond), fnMapIDs[0]));
+        bytes32 sbtBondID = keccak256(abi.encode(address(sbtBond), fnMapIDs[0]));
         for (uint256 k = 0; k < 2; k++) {
             bondIndex += 1;
             bondGroups[bondIndex].maturity = maturity;
@@ -375,10 +323,8 @@ contract TestERC20BondMaker is TestBaseBondMaker {
                     BondToGroup[sbtBondID] = bondIndex;
                     bondIDTofnMapID[sbtBondID] = fnMapIDs[0];
                 } else {
-                    testErc20BondToken bond =
-                        new testErc20BondToken(collateralAddress);
-                    bytes32 bondID =
-                        keccak256(abi.encode(address(bond), fnMapIDs[j]));
+                    testErc20BondToken bond = new testErc20BondToken(collateralAddress);
+                    bytes32 bondID = keccak256(abi.encode(address(bond), fnMapIDs[j]));
                     BondStrikePrice[bondID] = 0;
                     bondGroups[bondIndex].bondIDs.push(bondID);
                     bondToAddress[bondID] = address(bond);
@@ -400,16 +346,10 @@ contract TestERC20BondMaker is TestBaseBondMaker {
         bytes32[] memory outputBondIDs = bondGroups[outputBondGroupID].bondIDs;
         // bytes32 exceptionBondID = exceptionBonds[0];
         for (uint256 i = 1; i < inputBondIDs.length; i++) {
-            testErc20BondToken(bondToAddress[inputBondIDs[i]]).burn(
-                msg.sender,
-                amount
-            );
+            testErc20BondToken(bondToAddress[inputBondIDs[i]]).burn(msg.sender, amount);
         }
         for (uint256 i = 1; i < outputBondIDs.length; i++) {
-            testErc20BondToken(bondToAddress[outputBondIDs[i]]).mint(
-                msg.sender,
-                amount
-            );
+            testErc20BondToken(bondToAddress[outputBondIDs[i]]).mint(msg.sender, amount);
         }
 
         return true;
@@ -421,10 +361,7 @@ contract TestERC20BondMaker is TestBaseBondMaker {
     {
         bytes32[] memory inputBondIDs = bondGroups[bondGroupID].bondIDs;
         for (uint256 i = 1; i < inputBondIDs.length; i++) {
-            testBondToken(payable(bondToAddress[inputBondIDs[i]])).burn(
-                msg.sender,
-                amount
-            );
+            testBondToken(payable(bondToAddress[inputBondIDs[i]])).burn(msg.sender, amount);
         }
         IERC20(collateralAddress).transfer(msg.sender, amount);
         return true;

@@ -27,8 +27,7 @@ contract MockSimpleStrategy2 is SimpleStrategyInterface {
     {
         ethAmount = aggregatorAddress.balance / 10;
         if (bondGroupList.length > 0) {
-            (bytes32[] memory baseBondIds, ) =
-                bm.getBondGroup(issueBondGroupId);
+            (bytes32[] memory baseBondIds, ) = bm.getBondGroup(issueBondGroupId);
             (address baseLBT, , , ) = bm.getBond(baseBondIds[1]);
             uint256 balance = IERC20(baseLBT).balanceOf(aggregatorAddress);
             issueAmount = (aggregatorAddress.balance / 5) - balance;
@@ -104,12 +103,7 @@ contract MockSimpleStrategy2 is SimpleStrategyInterface {
         }
     }
 
-    function calcNextMaturity()
-        public
-        view
-        override
-        returns (uint256 nextTimeStamp)
-    {
+    function calcNextMaturity() public view override returns (uint256 nextTimeStamp) {
         uint256 WeekInSec = 604800;
         uint256 week = (block.timestamp - 144000) / (WeekInSec);
         nextTimeStamp = ((week + 3) * WeekInSec) + (144000);

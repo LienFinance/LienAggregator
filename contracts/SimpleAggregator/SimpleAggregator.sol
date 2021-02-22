@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma experimental ABIEncoderV2;
+// AUDIT-FIX: SAR-01
 pragma solidity 0.7.1;
+pragma experimental ABIEncoderV2;
 import "../Interfaces/StrategyInterface.sol";
 import "../Interfaces/SimpleAggragatorInterface.sol";
 import "../Interfaces/ExchangeInterface.sol";
@@ -8,15 +9,13 @@ import "../BondToken_and_GDOTC/bondToken/BondTokenInterface.sol";
 import "./BondPricerWithAcceptableMaturity.sol";
 import "../Interfaces/BondRegistratorInterface.sol";
 import "../Interfaces/UseVolatilityOracle.sol";
+// AUDIT-FIX: SAR-02 Not-Fixed: can not fix
 import "../../node_modules/@openzeppelin/contracts/math/SafeMath.sol";
 import "../../node_modules/@openzeppelin/contracts/utils/SafeCast.sol";
 import "../../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../../node_modules/@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 
-abstract contract SimpleAggregator is
-    SimpleAggregatorInterface,
-    UseVolatilityOracle
-{
+abstract contract SimpleAggregator is SimpleAggregatorInterface, UseVolatilityOracle {
     using SafeMath for uint256;
     using SafeCast for uint256;
     using SafeERC20 for ERC20;
@@ -49,7 +48,8 @@ abstract contract SimpleAggregator is
     }
 
     uint256 constant INFINITY = uint256(-1);
-
+    uint256 constant COOLTIME = 3600 * 24 * 3;
+    // AUDIT-FIX: SAR-03 Not-Fixed: strategy and dotc are used in the constractor
     SimpleStrategyInterface internal STRATEGY;
     ExchangeInterface internal DOTC;
     ERC20 internal immutable REWARD_TOKEN;
@@ -62,11 +62,11 @@ abstract contract SimpleAggregator is
     int16 internal constant MAX_SUPPLY_DENUMERATOR = 8;
     uint64 internal immutable BASE_PRICE_UNIT;
 
+    // AUDIT-FIX: SAR-28 Not-Fixed:
     mapping(uint256 => TermInfo) internal termInfo;
 
     mapping(uint256 => uint256[]) internal issuableBondGroupIds;
-    mapping(uint256 => mapping(uint256 => uint256))
-        internal strikePriceToBondGroup;
+    mapping(uint256 => mapping(uint256 => uint256)) internal strikePriceToBondGroup;
 
     TotalReward[] internal totalRewards;
     // Aggregator Status
@@ -79,6 +79,7 @@ abstract contract SimpleAggregator is
     int16 internal currentFeeBase;
     bool internal isTotalSupplyDanger;
 
+    // AUDIT-FIX: SAR-29 Not-Fixed:
     mapping(address => ReceivedCollateral) internal receivedCollaterals;
     mapping(address => UnRemovedToken) internal unremovedTokens;
     mapping(address => BalanceData) internal balance;
@@ -93,23 +94,11 @@ abstract contract SimpleAggregator is
 
     event Transfer(address indexed from, address indexed to, uint256 value);
 
-    event Approval(
-        address indexed owner,
-        address indexed spender,
-        uint256 value
-    );
+    event Approval(address indexed owner, address indexed spender, uint256 value);
 
-    event SetAddLiquidity(
-        address indexed user,
-        uint256 indexed term,
-        uint256 collateralAmount
-    );
+    event SetAddLiquidity(address indexed user, uint256 indexed term, uint256 collateralAmount);
 
-    event SetRemoveLiquidity(
-        address indexed user,
-        uint256 indexed term,
-        uint256 tokenAmount
-    );
+    event SetRemoveLiquidity(address indexed user, uint256 indexed term, uint256 tokenAmount);
 
     event SettleLiquidity(
         address indexed user,
@@ -125,11 +114,7 @@ abstract contract SimpleAggregator is
         uint64 burnAmount
     );
 
-    event UpdateMaturity(
-        uint64 indexed term,
-        int16 newFeeBase,
-        uint64 maturity
-    );
+    event UpdateMaturity(uint64 indexed term, int16 newFeeBase, uint64 maturity);
 
     event AddLiquidity(address indexed user, uint256 tokenAmount);
     event Number(uint256 num);
@@ -144,7 +129,7 @@ abstract contract SimpleAggregator is
 
     modifier endCoolTime() {
         require(
-            block.timestamp > lastTrancheTime + 3600 * 24 * 3,
+            block.timestamp > lastTrancheTime + COOLTIME,
             "Error: In the Cool Time of TrancheBonds"
         );
         _;
@@ -163,14 +148,6 @@ abstract contract SimpleAggregator is
         _;
     }
 
-    modifier afterExpired() {
-        require(
-            liquidationData[currentTerm].isLiquidated || currentTerm == 0,
-            "Error: This function should be executed after expired"
-        );
-        _;
-    }
-
     // When collateralPerToken becomes very small value, total supply of share token can overflow
     modifier isSafeSupply() {
         require(!isTotalSupplyDanger, "TotalSupply is unsafe");
@@ -178,10 +155,7 @@ abstract contract SimpleAggregator is
     }
 
     modifier onlyBonusProvider() {
-        require(
-            msg.sender == OWNER,
-            "This function is restricted to the reward token provider"
-        );
+        require(msg.sender == OWNER, "This function is restricted to the reward token provider");
         _;
     }
 
@@ -198,7 +172,6 @@ abstract contract SimpleAggregator is
         VolatilityOracleInterface _volOracle
     ) UseVolatilityOracle(_volOracle) {
         BONDMAKER = _exchangeAddress.bondMakerAddress();
-        STRATEGY = _strategy;
         BOND_PRICER = _pricer;
         ORACLE = _oracle;
         BASE_PRICE_UNIT = _priceUnit;
@@ -207,9 +180,16 @@ abstract contract SimpleAggregator is
         BOND_REGISTRATOR = _registrator;
         DOTC = _exchangeAddress;
 
+        STRATEGY = _strategy;
+
         totalRewards.push(TotalReward(1, _firstRewardRate));
         priceUnit = _priceUnit;
         OWNER = msg.sender;
+        // AUDIT-FIX: SAR-27
+        require(
+            _firstRewardRate >= 10**decimals && _firstRewardRate <= 1000000 * 10**decimals,
+            "Out of valid reward rate range"
+        );
     }
 
     /**
@@ -217,63 +197,61 @@ abstract contract SimpleAggregator is
      * Then, determine total amount of collateral asset and totalSupply of share token
      * Collateral asset to be withdrawn in `settleTokens()` is sent for reserve contract
      */
-    function renewMaturity() public override afterExpired {
+    function renewMaturity() public override {
         uint256 totalUnsentTokens;
         uint256 collateralPerTokenE8;
-        if (shareData[currentTerm].totalShare > 0) {
+        // AUDIT-FIX: SAR-06
+        uint256 _currentTerm = currentTerm;
+        // AUDIT-FIX: SAR-07
+        uint256 currentUnremoved = totalUnremovedTokens[_currentTerm];
+        require(
+            liquidationData[_currentTerm].isLiquidated || _currentTerm == 0,
+            "Error: This function should be executed after expired"
+        );
+        // AUDIT-FIX: SAR-05
+        uint256 totalShare = shareData[_currentTerm].totalShare;
+        if (totalShare > 0) {
             uint256 collateralAmount = getCollateralAmount();
             collateralPerTokenE8 = _applyDecimalGap(
-                collateralAmount.mul(10**decimals).div(
-                    shareData[currentTerm].totalShare
-                ),
+                collateralAmount.mul(10**decimals).div(totalShare),
                 true
             );
             totalUnsentTokens = _applyDecimalGap(
-                uint256(totalReceivedCollateral[currentTerm]).mul(10**8) /
+                // AUDIT-FIX: SAR-04
+                uint256(totalReceivedCollateral[_currentTerm]).mul(10**decimals) /
                     collateralPerTokenE8,
                 true
             );
-        } else if (totalReceivedCollateral[currentTerm] > 0) {
-            totalUnsentTokens = _applyDecimalGap(
-                totalReceivedCollateral[currentTerm],
-                true
-            );
-            collateralPerTokenE8 = 10**8;
+        } else if (totalReceivedCollateral[_currentTerm] > 0) {
+            totalUnsentTokens = _applyDecimalGap(totalReceivedCollateral[_currentTerm], true);
+            // AUDIT-FIX: SAR-05
+            collateralPerTokenE8 = 10**decimals;
         }
 
-        uint256 _totalSupply =
-            shareData[currentTerm].totalShare + totalUnsentTokens;
-        shareData[currentTerm + 1]
-            .totalCollateralPerToken = collateralPerTokenE8.toUint128();
-        shareData[currentTerm + 1].totalShare = uint256(
-            shareData[currentTerm]
-                .totalShare
-        )
+        uint256 _totalSupply = totalShare + totalUnsentTokens;
+        shareData[_currentTerm + 1].totalCollateralPerToken = collateralPerTokenE8.toUint128();
+        shareData[_currentTerm + 1].totalShare = uint256(totalShare)
             .add(totalUnsentTokens)
-            .sub(totalUnremovedTokens[currentTerm])
+            .sub(currentUnremoved)
             .toUint128();
 
         if (
-            shareData[currentTerm + 1].totalShare >
+            shareData[_currentTerm + 1].totalShare >
             uint128(-1) / 10**uint128(MAX_SUPPLY_DENUMERATOR)
         ) {
             isTotalSupplyDanger = true;
         }
 
-        if (currentTerm != 0) {
+        if (_currentTerm != 0) {
             _updateFeeBase();
         }
 
-        if (_totalSupply > 0 && totalUnremovedTokens[currentTerm] > 0) {
+        if (_totalSupply > 0 && currentUnremoved > 0) {
             _reserveAsset(collateralPerTokenE8);
         }
         _updateBondGroupData();
 
-        emit UpdateMaturity(
-            currentTerm.toUint64(),
-            currentFeeBase,
-            termInfo[currentTerm].maturity
-        );
+        emit UpdateMaturity(currentTerm.toUint64(), currentFeeBase, termInfo[currentTerm].maturity);
     }
 
     /**
@@ -281,13 +259,10 @@ abstract contract SimpleAggregator is
      * Only owner can call this function
      * @param rewardRate is restricted from 10**8 (1 LIEN) to 10**14 (total supply of Lien token)
      */
-    function updateTotalReward(uint64 rewardRate)
-        public
-        onlyBonusProvider
-        isRunning
-    {
+    function updateTotalReward(uint64 rewardRate) public onlyBonusProvider isRunning {
+        // AUDIT-FIX: SAR-08
         require(
-            rewardRate > 10**8 && rewardRate < 10**14,
+            rewardRate >= 10**decimals && rewardRate <= 1000000 * 10**decimals,
             "Out of valid reward rate range"
         );
         totalRewards.push(TotalReward(currentTerm.toUint64() + 1, rewardRate));
@@ -296,55 +271,44 @@ abstract contract SimpleAggregator is
     function _updateBondGroupData() internal {
         uint256 nextTimeStamp = STRATEGY.calcNextMaturity();
         uint256 currentPriceE8 = ORACLE.latestPrice();
-        uint256 currentStrikePrice =
-            STRATEGY.getCurrentStrikePrice(
-                currentPriceE8,
-                priceUnit,
-                REVERSE_ORACLE
-            );
+        uint256 currentStrikePrice = STRATEGY.getCurrentStrikePrice(
+            currentPriceE8,
+            priceUnit,
+            REVERSE_ORACLE
+        );
 
         _updatePriceUnit(currentPriceE8);
 
         // Register SBT for next term
-        bytes32 SBTId =
-            BOND_REGISTRATOR.registerSBT(
-                BONDMAKER,
-                currentStrikePrice.toUint64(),
-                nextTimeStamp.toUint64()
-            );
+        bytes32 SBTId = BOND_REGISTRATOR.registerSBT(
+            BONDMAKER,
+            currentStrikePrice.toUint64(),
+            nextTimeStamp.toUint64()
+        );
 
         currentTerm += 1;
-        TermInfo memory newTermInfo =
-            TermInfo(
-                nextTimeStamp.toUint64(),
-                currentStrikePrice.toUint64(),
-                SBTId
-            );
+        TermInfo memory newTermInfo = TermInfo(
+            nextTimeStamp.toUint64(),
+            currentStrikePrice.toUint64(),
+            SBTId
+        );
         termInfo[currentTerm] = newTermInfo;
         BOND_PRICER.updateAcceptableMaturity(nextTimeStamp);
     }
 
     function _addLiquidity(uint256 amount) internal returns (bool success) {
         (, uint256 unsentToken, uint256 addLiquidityTerm) = _settleTokens();
-        _updateBalanceDataForLiquidityMove(
-            msg.sender,
-            unsentToken,
-            0,
-            addLiquidityTerm
-        );
+        _updateBalanceDataForLiquidityMove(msg.sender, unsentToken, 0, addLiquidityTerm);
+        // AUDIT-FIX: SAR-09
+        uint256 _currentTerm = currentTerm;
         if (receivedCollaterals[msg.sender].value == 0) {
-            receivedCollaterals[msg.sender].term = uint128(currentTerm);
-            receivedCollaterals[msg.sender].value = uint128(amount);
-            totalReceivedCollateral[currentTerm] += amount.toUint128();
-            emit SetAddLiquidity(msg.sender, currentTerm, amount);
-            return true;
-        } else if (receivedCollaterals[msg.sender].term == currentTerm) {
-            receivedCollaterals[msg.sender].value += uint128(amount);
-            totalReceivedCollateral[currentTerm] += amount.toUint128();
-            emit SetAddLiquidity(msg.sender, currentTerm, amount);
-            return true;
+            // AUDIT-FIX: SAR-30
+            receivedCollaterals[msg.sender].term = uint128(_currentTerm);
         }
-        return false;
+        receivedCollaterals[msg.sender].value += amount.toUint128();
+        totalReceivedCollateral[_currentTerm] += amount.toUint128();
+        emit SetAddLiquidity(msg.sender, _currentTerm, amount);
+        return true;
     }
 
     /**
@@ -354,43 +318,18 @@ abstract contract SimpleAggregator is
      * Before remove liquidity, run _settleTokens()
      */
 
-    function removeLiquidity(uint128 amount)
-        external
-        override
-        returns (bool success)
-    {
+    function removeLiquidity(uint128 amount) external override returns (bool success) {
         (, uint256 unsentToken, uint256 addLiquidityTerm) = _settleTokens();
+        // AUDIT-FIX: SAR-10
+        uint256 _currentTerm = currentTerm;
         if (unremovedTokens[msg.sender].value == 0) {
-            unremovedTokens[msg.sender].term = uint128(currentTerm);
-            unremovedTokens[msg.sender].value = amount;
-            totalUnremovedTokens[currentTerm] += amount;
-            _updateBalanceDataForLiquidityMove(
-                msg.sender,
-                unsentToken,
-                amount,
-                addLiquidityTerm
-            );
-            emit SetRemoveLiquidity(msg.sender, currentTerm, amount);
-            return true;
-        } else if (unremovedTokens[msg.sender].term == currentTerm) {
-            unremovedTokens[msg.sender].value += amount;
-            totalUnremovedTokens[currentTerm] += amount;
-            _updateBalanceDataForLiquidityMove(
-                msg.sender,
-                unsentToken,
-                amount,
-                addLiquidityTerm
-            );
-            emit SetRemoveLiquidity(msg.sender, currentTerm, amount);
-            return true;
+            unremovedTokens[msg.sender].term = uint128(_currentTerm);
         }
-        _updateBalanceDataForLiquidityMove(
-            msg.sender,
-            unsentToken,
-            0,
-            addLiquidityTerm
-        );
-        return false;
+        unremovedTokens[msg.sender].value += amount;
+        totalUnremovedTokens[_currentTerm] += amount;
+        _updateBalanceDataForLiquidityMove(msg.sender, unsentToken, amount, addLiquidityTerm);
+        emit SetRemoveLiquidity(msg.sender, _currentTerm, amount);
+        return true;
     }
 
     function _settleTokens()
@@ -401,20 +340,20 @@ abstract contract SimpleAggregator is
             uint256 addLiquidityTerm
         )
     {
-        if (currentTerm == 0) {
+        // AUDIT-FIX: SAR-10
+        uint256 _currentTerm = currentTerm;
+        uint128 lastRemoveLiquidityTerm = unremovedTokens[msg.sender].term;
+        uint128 lastRemoveLiquidityValue = unremovedTokens[msg.sender].value;
+        uint128 lastAddLiquidityTerm = receivedCollaterals[msg.sender].term;
+        uint128 lastAddLiquidityValue = receivedCollaterals[msg.sender].value;
+        if (_currentTerm == 0) {
             return (0, 0, 0);
         }
 
-        if (
-            unremovedTokens[msg.sender].value != 0 &&
-            currentTerm > unremovedTokens[msg.sender].term
-        ) {
+        if (lastRemoveLiquidityValue != 0 && _currentTerm > lastRemoveLiquidityTerm) {
             unsentETH = _applyDecimalGap(
-                uint256(unremovedTokens[msg.sender].value)
-                    .mul(
-                    shareData[uint256(unremovedTokens[msg.sender].term + 1)]
-                        .totalCollateralPerToken
-                )
+                uint256(lastRemoveLiquidityValue)
+                    .mul(shareData[uint256(lastRemoveLiquidityTerm + 1)].totalCollateralPerToken)
                     .div(10**decimals),
                 false
             );
@@ -424,44 +363,27 @@ abstract contract SimpleAggregator is
             delete unremovedTokens[msg.sender];
         }
 
-        if (
-            receivedCollaterals[msg.sender].value != 0 &&
-            currentTerm > receivedCollaterals[msg.sender].term
-        ) {
+        if (lastAddLiquidityValue != 0 && _currentTerm > lastAddLiquidityTerm) {
             unsentToken = _applyDecimalGap(
-                uint256(receivedCollaterals[msg.sender].value)
-                    .mul(10**decimals)
-                    .div(
-                    uint256(
-                        shareData[receivedCollaterals[msg.sender].term + 1]
-                            .totalCollateralPerToken
-                    )
+                uint256(lastAddLiquidityValue).mul(10**decimals).div(
+                    uint256(shareData[lastAddLiquidityTerm + 1].totalCollateralPerToken)
                 ),
                 true
             );
-            addLiquidityTerm = receivedCollaterals[msg.sender].term;
+            addLiquidityTerm = lastAddLiquidityTerm;
             delete receivedCollaterals[msg.sender];
         }
-        emit SettleLiquidity(msg.sender, currentTerm, unsentETH, unsentToken);
+        emit SettleLiquidity(msg.sender, _currentTerm, unsentETH, unsentToken);
     }
 
     /**
      * @notice Increment share token for addLiquidity data
      * Transfer collateral asset for remove liquidity data
      */
-    function settleTokens()
-        external
-        override
-        returns (uint256 unsentETH, uint256 unsentToken)
-    {
+    function settleTokens() external override returns (uint256 unsentETH, uint256 unsentToken) {
         uint256 addLiquidityTerm;
         (unsentETH, unsentToken, addLiquidityTerm) = _settleTokens();
-        _updateBalanceDataForLiquidityMove(
-            msg.sender,
-            unsentToken,
-            0,
-            addLiquidityTerm
-        );
+        _updateBalanceDataForLiquidityMove(msg.sender, unsentToken, 0, addLiquidityTerm);
     }
 
     /**
@@ -470,11 +392,12 @@ abstract contract SimpleAggregator is
      */
     function updateStartBondGroupId() external override isRunning {
         uint32 _startBondGroupId = startBondGroupId;
-        uint64 priviousMaturity = termInfo[currentTerm - 1].maturity;
-        require(priviousMaturity != 0, "Error: Maturity shoudld exist");
+        // AUDIT-FIX: SAR-13
+        uint64 previousMaturity = termInfo[currentTerm - 1].maturity;
+        require(previousMaturity != 0, "Error: Maturity shoudld exist");
         while (true) {
             (, uint256 maturity) = BONDMAKER.getBondGroup(_startBondGroupId);
-            if (maturity >= priviousMaturity) {
+            if (maturity >= previousMaturity) {
                 startBondGroupId = _startBondGroupId;
                 return;
             }
@@ -487,21 +410,18 @@ abstract contract SimpleAggregator is
      * Aggregator can search for 50 bondGroup and burn 10 bonds one time
      */
     function liquidateBonds() public override afterMaturity {
-        require(
-            !liquidationData[currentTerm].isLiquidated,
-            "Error: All bonds have been expired"
-        );
-        if (liquidationData[currentTerm].endBondGroupId == 0) {
-            liquidationData[currentTerm].endBondGroupId = BONDMAKER
-                .nextBondGroupID()
-                .toUint32();
+        // AUDIT-FIX: SAR-14
+        uint256 _currentTerm = currentTerm;
+        require(!liquidationData[_currentTerm].isLiquidated, "Error: All bonds have been expired");
+        if (liquidationData[_currentTerm].endBondGroupId == 0) {
+            liquidationData[_currentTerm].endBondGroupId = BONDMAKER.nextBondGroupID().toUint32();
         }
         // ToDo: Register least bond group ID
         uint32 endIndex;
         uint32 startIndex;
         uint32 liquidateBondNumber;
-        uint64 maturity = termInfo[currentTerm].maturity;
-        uint64 priviousMaturity = termInfo[currentTerm - 1].maturity;
+        uint64 maturity = termInfo[_currentTerm].maturity;
+        uint64 previousMaturity = termInfo[_currentTerm - 1].maturity;
         {
             uint256 ethAllowance = DOTC.ethAllowance(address(this));
             if (ethAllowance > 0) {
@@ -509,17 +429,17 @@ abstract contract SimpleAggregator is
             }
         }
 
-        if (liquidationData[currentTerm].liquidatedBondGroupID == 0) {
+        if (liquidationData[_currentTerm].liquidatedBondGroupID == 0) {
             startIndex = startBondGroupId;
         } else {
-            startIndex = liquidationData[currentTerm].liquidatedBondGroupID;
+            startIndex = liquidationData[_currentTerm].liquidatedBondGroupID;
         }
 
-        if (liquidationData[currentTerm].endBondGroupId - startIndex > 50) {
+        if (liquidationData[_currentTerm].endBondGroupId - startIndex > 50) {
             endIndex = startIndex + 50;
-            liquidationData[currentTerm].liquidatedBondGroupID = endIndex;
+            liquidationData[_currentTerm].liquidatedBondGroupID = endIndex;
         } else {
-            endIndex = liquidationData[currentTerm].endBondGroupId;
+            endIndex = liquidationData[_currentTerm].endBondGroupId;
         }
 
         for (uint256 i = startIndex; i < endIndex; i++) {
@@ -527,36 +447,27 @@ abstract contract SimpleAggregator is
                 i,
                 liquidateBondNumber,
                 maturity,
-                priviousMaturity
+                previousMaturity
             );
 
             if (liquidateBondNumber > 9) {
                 if (i == endIndex - 1) {
-                    liquidationData[currentTerm].isLiquidated = true;
+                    liquidationData[_currentTerm].isLiquidated = true;
                 } else {
-                    liquidationData[currentTerm].liquidatedBondGroupID = uint32(
-                        i + 1
-                    );
+                    liquidationData[_currentTerm].liquidatedBondGroupID = uint32(i + 1);
                 }
                 return;
             }
         }
 
-        if (endIndex == liquidationData[currentTerm].endBondGroupId) {
-            liquidationData[currentTerm].isLiquidated = true;
+        if (endIndex == liquidationData[_currentTerm].endBondGroupId) {
+            liquidationData[_currentTerm].isLiquidated = true;
         } else {
-            liquidationData[currentTerm].liquidatedBondGroupID = uint32(
-                endIndex
-            );
+            liquidationData[_currentTerm].liquidatedBondGroupID = endIndex;
         }
     }
 
-    function addSuitableBondGroup()
-        external
-        override
-        isActive
-        returns (uint256 bondGroupID)
-    {
+    function addSuitableBondGroup() external override isActive returns (uint256 bondGroupID) {
         uint256 currentPriceE8 = ORACLE.latestPrice();
         return _addSuitableBondGroup(currentPriceE8);
     }
@@ -571,19 +482,20 @@ abstract contract SimpleAggregator is
             bondGroupId = _addSuitableBondGroup(currentPriceE8);
         }
 
-        (uint256 amount, uint256 ethAmount, uint256[2] memory reverseBonds) =
-            STRATEGY.getTrancheBonds(
-                BONDMAKER,
-                address(this),
-                bondGroupId,
-                currentPriceE8,
-                issuableBondGroupIds[currentTerm],
-                priceUnit,
-                REVERSE_ORACLE
-            );
+        (uint256 amount, uint256 ethAmount, uint256[2] memory reverseBonds) = STRATEGY
+            .getTrancheBonds(
+            BONDMAKER,
+            address(this),
+            bondGroupId,
+            currentPriceE8,
+            issuableBondGroupIds[currentTerm],
+            priceUnit,
+            REVERSE_ORACLE
+        );
 
         if (ethAmount > 0) {
-            DOTC.depositEth{value: uint256(ethAmount)}();
+            // AUDIT-FIX: SAR-16
+            DOTC.depositEth{value: ethAmount}();
         }
 
         if (amount > 0) {
@@ -593,10 +505,7 @@ abstract contract SimpleAggregator is
         if (reverseBonds[1] > 0) {
             // Burn bond and get collateral asset
             require(
-                BONDMAKER.reverseBondGroupToCollateral(
-                    reverseBonds[0],
-                    reverseBonds[1]
-                ),
+                BONDMAKER.reverseBondGroupToCollateral(reverseBonds[0], reverseBonds[1]),
                 "Error: Could not reverse LBTs to collateral"
             );
         }
@@ -633,14 +542,10 @@ abstract contract SimpleAggregator is
         uint256 bondGroupId,
         uint32 liquidateBondNumber,
         uint64 maturity,
-        uint64 priviousMaturity
+        uint64 previousMaturity
     ) internal returns (uint32) {
-        (bytes32[] memory bondIds, uint256 _maturity) =
-            BONDMAKER.getBondGroup(bondGroupId);
-        if (
-            _maturity > maturity ||
-            (_maturity < priviousMaturity && priviousMaturity != 0)
-        ) {
+        (bytes32[] memory bondIds, uint256 _maturity) = BONDMAKER.getBondGroup(bondGroupId);
+        if (_maturity > maturity || (_maturity < previousMaturity && previousMaturity != 0)) {
             return liquidateBondNumber;
         }
         bool isLiquidated;
@@ -656,108 +561,77 @@ abstract contract SimpleAggregator is
         return liquidateBondNumber;
     }
 
-    function _getSuitableBondGroup(uint256 currentPriceE8)
-        internal
-        view
-        returns (uint256)
-    {
-        uint256 roundedPrice =
-            STRATEGY.calcRoundPrice(currentPriceE8, priceUnit, 1);
-        if (strikePriceToBondGroup[currentTerm][roundedPrice] != 0) {
-            return strikePriceToBondGroup[currentTerm][roundedPrice];
+    function _getSuitableBondGroup(uint256 currentPriceE8) internal view returns (uint256) {
+        // AUDIT-FIX: SAR-18
+        uint256 roundedPrice = STRATEGY.calcRoundPrice(currentPriceE8, priceUnit, 1);
+
+
+            mapping(uint256 => uint256) storage priceToGroupBondId
+         = strikePriceToBondGroup[currentTerm];
+        if (priceToGroupBondId[roundedPrice] != 0) {
+            return priceToGroupBondId[roundedPrice];
         }
         // Suitable bond range is in between current price +- 2 * priceUnit
         for (uint256 i = 1; i <= 2; i++) {
-            if (
-                strikePriceToBondGroup[currentTerm][
-                    roundedPrice - priceUnit * i
-                ] != 0
-            ) {
-                return
-                    strikePriceToBondGroup[currentTerm][
-                        roundedPrice - priceUnit * i
-                    ];
+            if (priceToGroupBondId[roundedPrice - priceUnit * i] != 0) {
+                return priceToGroupBondId[roundedPrice - priceUnit * i];
             }
 
-            if (
-                strikePriceToBondGroup[currentTerm][
-                    roundedPrice + priceUnit * i
-                ] != 0
-            ) {
-                return
-                    strikePriceToBondGroup[currentTerm][
-                        roundedPrice + priceUnit * i
-                    ];
+            if (priceToGroupBondId[roundedPrice + priceUnit * i] != 0) {
+                return priceToGroupBondId[roundedPrice + priceUnit * i];
             }
         }
     }
 
-    function _addSuitableBondGroup(uint256 currentPriceE8)
-        internal
-        returns (uint256 bondGroupID)
-    {
-        uint256 callStrikePrice =
-            STRATEGY.calcCallStrikePrice(
-                currentPriceE8,
-                priceUnit,
-                REVERSE_ORACLE
-            );
-        callStrikePrice = _adjustPrice(
-            termInfo[currentTerm].strikePrice,
-            callStrikePrice
+    function _addSuitableBondGroup(uint256 currentPriceE8) internal returns (uint256 bondGroupID) {
+        uint256 callStrikePrice = STRATEGY.calcCallStrikePrice(
+            currentPriceE8,
+            priceUnit,
+            REVERSE_ORACLE
         );
-
+        // AUDIT-FIX: SAR-17
+        uint256 _currentTerm = currentTerm;
+        TermInfo memory info = termInfo[_currentTerm];
+        callStrikePrice = _adjustPrice(info.strikePrice, callStrikePrice);
         bondGroupID = BOND_REGISTRATOR.registerBondGroup(
             BONDMAKER,
             callStrikePrice,
-            termInfo[currentTerm].strikePrice,
-            termInfo[currentTerm].maturity,
-            termInfo[currentTerm].SBTId
+            info.strikePrice,
+            info.maturity,
+            info.SBTId
         );
         // If reverse oracle is set to aggregator, make Collateral/USD price
         if (REVERSE_ORACLE) {
+            // AUDIT-FIX: SAR-19 (make REVERSE_ORACLE false as it can be used in _getSuitableBondGroup())
             _addBondGroup(
                 bondGroupID,
-                STRATEGY.calcRoundPrice(currentPriceE8, priceUnit, 1)
+                STRATEGY.calcCallStrikePrice(currentPriceE8, priceUnit, false)
             );
         } else {
             _addBondGroup(bondGroupID, callStrikePrice);
         }
     }
 
-    function _addBondGroup(uint256 bondGroupId, uint256 callStrikePriceInEthUSD)
-        internal
-    {
+    function _addBondGroup(uint256 bondGroupId, uint256 callStrikePriceInEthUSD) internal {
         // Register bond group info
         issuableBondGroupIds[currentTerm].push(bondGroupId);
-        strikePriceToBondGroup[currentTerm][
-            callStrikePriceInEthUSD
-        ] = bondGroupId;
+        strikePriceToBondGroup[currentTerm][callStrikePriceInEthUSD] = bondGroupId;
 
         (bytes32[] memory bondIDs, ) = BONDMAKER.getBondGroup(bondGroupId);
         (address bondType1Address, , , ) = BONDMAKER.getBond(bondIDs[1]);
 
         // Infinite approve if no approval
-        if (
-            IERC20(bondType1Address).allowance(address(this), address(DOTC)) ==
-            0
-        ) {
+        if (IERC20(bondType1Address).allowance(address(this), address(DOTC)) == 0) {
             IERC20(bondType1Address).approve(address(DOTC), INFINITY);
         }
 
         (address bondType2Address, , , ) = BONDMAKER.getBond(bondIDs[2]);
 
-        if (
-            IERC20(bondType2Address).allowance(address(this), address(DOTC)) ==
-            0
-        ) {
+        if (IERC20(bondType2Address).allowance(address(this), address(DOTC)) == 0) {
             IERC20(bondType2Address).approve(address(DOTC), INFINITY);
         }
         (address bondType3Address, , , ) = BONDMAKER.getBond(bondIDs[3]);
-        if (
-            IERC20(bondType3Address).allowance(address(this), address(DOTC)) ==
-            0
-        ) {
+        if (IERC20(bondType3Address).allowance(address(this), address(DOTC)) == 0) {
             IERC20(bondType3Address).approve(address(DOTC), INFINITY);
         }
     }
@@ -792,7 +666,8 @@ abstract contract SimpleAggregator is
         pure
         returns (uint256)
     {
-        return callStrikePrice - ((callStrikePrice - sbtStrikePrice) % 2);
+        // AUDIT-FIX: SAR-20
+        return callStrikePrice.sub(callStrikePrice.sub(sbtStrikePrice) % 2);
     }
 
     function changeSpread() public virtual override {}
@@ -801,59 +676,32 @@ abstract contract SimpleAggregator is
 
     function _reserveAsset(uint256 reserveAmountRatioE8) internal virtual {}
 
-    function _issueBonds(uint256 bondgroupID, uint256 amount)
-        internal
-        virtual
-    {}
+    function _issueBonds(uint256 bondgroupID, uint256 amount) internal virtual {}
 
-    function getCollateralAddress()
-        external
-        view
-        virtual
-        override
-        returns (address)
-    {}
+    function getCollateralAddress() external view virtual override returns (address) {}
 
-    function _applyDecimalGap(uint256 amount, bool isDiv)
-        internal
-        view
-        virtual
-        returns (uint256)
-    {}
+    function _applyDecimalGap(uint256 amount, bool isDiv) internal view virtual returns (uint256) {}
 
-    function getCollateralDecimal()
-        external
-        view
-        virtual
-        override
-        returns (int16)
-    {}
+    function getCollateralDecimal() external view virtual override returns (int16) {}
 
     function getReserveAddress() external view virtual returns (address) {}
 
-    function getCollateralAmount()
-        public
-        view
-        virtual
-        override
-        returns (uint256)
-    {}
+    function getCollateralAmount() public view virtual override returns (uint256) {}
 
     // Reward functions
     /**
      * @dev Update reward amount, then update balance
      */
     function _updateBalanceData(address owner, int256 amount) internal {
-        BalanceData memory balanceData =
-            _calcNextReward(balance[owner], currentTerm);
+        BalanceData memory balanceData = balance[owner];
+        balanceData.rewardAmount = _calcNextReward(balanceData, currentTerm);
+        balanceData.term = uint64(currentTerm);
         if (amount < 0) {
             balanceData.balance = uint256(balanceData.balance)
                 .sub(uint256(amount * -1))
                 .toUint128();
         } else {
-            balanceData.balance = uint256(balanceData.balance)
-                .add(uint256(amount))
-                .toUint128();
+            balanceData.balance = uint256(balanceData.balance).add(uint256(amount)).toUint128();
         }
         balance[owner] = balanceData;
     }
@@ -867,21 +715,18 @@ abstract contract SimpleAggregator is
         BalanceData memory balanceData = balance[owner];
         // Update reward amount before addliquidity
         if (addAmount != 0) {
-            balanceData = _calcNextReward(balanceData, term);
-            balanceData.balance = balanceData.balance = uint256(
-                balanceData
-                    .balance
-            )
+            balanceData.rewardAmount = _calcNextReward(balanceData, term);
+            balanceData.term = uint64(term);
+            balanceData.balance = balanceData.balance = uint256(balanceData.balance)
                 .add(uint256(addAmount))
                 .toUint128();
         }
         // Update reward amount after addliquidity
-        balanceData = _calcNextReward(balanceData, currentTerm);
+        balanceData.rewardAmount = _calcNextReward(balanceData, currentTerm);
+        balanceData.term = uint64(currentTerm);
         // Update balance if remove liquidity
         if (removeAmount != 0) {
-            balanceData.balance = uint256(balanceData.balance)
-                .sub(removeAmount)
-                .toUint128();
+            balanceData.balance = uint256(balanceData.balance).sub(removeAmount).toUint128();
         }
         balance[owner] = balanceData;
     }
@@ -890,16 +735,17 @@ abstract contract SimpleAggregator is
      * @dev This function is called before change balance of share token
      * @param term Reward amount is calculated from next term after this function is called to  term `term`
      */
+    // AUDIT-FIX: SAR-21
     function _calcNextReward(BalanceData memory balanceData, uint256 term)
         internal
         view
-        returns (BalanceData memory)
+        returns (uint64 rewardAmount)
     {
+        rewardAmount = balanceData.rewardAmount;
         if (balanceData.balance > 0 && balanceData.term < term) {
             uint64 index = uint64(totalRewards.length - 1);
             uint64 referenceTerm = totalRewards[index].term;
             uint64 rewardTotal = totalRewards[index].value;
-            uint64 rewardAmount = balanceData.rewardAmount;
 
             for (uint256 i = term; i > balanceData.term; i--) {
                 if (i < referenceTerm) {
@@ -911,17 +757,11 @@ abstract contract SimpleAggregator is
                 // Reward amount is calculated by `total reward amount * user balance / total share`
                 rewardAmount = uint256(rewardAmount)
                     .add(
-                    (uint256(rewardTotal).mul(balanceData.balance)).div(
-                        shareData[i].totalShare
-                    )
+                    (uint256(rewardTotal).mul(balanceData.balance)).div(shareData[i].totalShare)
                 )
                     .toUint64();
             }
-            balanceData.rewardAmount = rewardAmount;
         }
-        // Update term
-        balanceData.term = uint64(term);
-        return balanceData;
     }
 
     /**
@@ -929,7 +769,8 @@ abstract contract SimpleAggregator is
      */
     function claimReward() public override {
         BalanceData memory userData = balance[msg.sender];
-        userData = _calcNextReward(userData, currentTerm);
+        userData.rewardAmount = _calcNextReward(userData, currentTerm);
+        userData.term = uint64(currentTerm);
         require(userData.rewardAmount > 0, "User should have reward");
         uint256 rewardAmount = userData.rewardAmount;
         userData.rewardAmount = 0;
@@ -942,23 +783,17 @@ abstract contract SimpleAggregator is
     /**
      * @param amount If this value is uint256(-1) infinite approve
      */
-    function approve(address spender, uint256 amount)
-        external
-        override
-        returns (bool)
-    {
+    function approve(address spender, uint256 amount) external override returns (bool) {
         if (amount == uint256(-1)) {
             amount = uint128(-1);
         }
         allowances[msg.sender][spender] = amount.toUint128();
         emit Approval(msg.sender, spender, amount);
+        // AUDIT-FIX: SAR-22
+        return true;
     }
 
-    function transfer(address recipient, uint256 amount)
-        external
-        override
-        returns (bool)
-    {
+    function transfer(address recipient, uint256 amount) external override returns (bool) {
         return _transferToken(msg.sender, recipient, amount.toUint128());
     }
 
@@ -976,13 +811,13 @@ abstract contract SimpleAggregator is
         }
         // Skip if infinity approve
         if (currentAllowance != uint128(-1)) {
-            allowances[sender][msg.sender] = uint256(
-                allowances[sender][msg.sender]
-            )
+            allowances[sender][msg.sender] = uint256(allowances[sender][msg.sender])
                 .sub(amount)
                 .toUint128();
         }
         _transferToken(sender, recipient, amount.toUint128());
+        // AUDIT-FIX: SAR-23
+        return true;
     }
 
     /**
@@ -1007,10 +842,7 @@ abstract contract SimpleAggregator is
     }
 
     function totalSupply() public view override returns (uint256) {
-        return
-            uint256(shareData[currentTerm].totalShare).sub(
-                totalUnremovedTokens[currentTerm]
-            );
+        return uint256(shareData[currentTerm].totalShare).sub(totalUnremovedTokens[currentTerm]);
     }
 
     function getLiquidityReservationData(address user)
@@ -1067,11 +899,10 @@ abstract contract SimpleAggregator is
         if (term == 0) {
             term = currentTerm;
         }
-        return (
-            liquidationData[term].isLiquidated,
-            liquidationData[term].liquidatedBondGroupID,
-            liquidationData[term].endBondGroupId
-        );
+        // AUDIT-FIX: SAR-24
+        isLiquidated = liquidationData[term].isLiquidated;
+        liquidatedBondGroupID = liquidationData[term].liquidatedBondGroupID;
+        endBondGroupId = liquidationData[term].endBondGroupId;
     }
 
     function totalShareData(uint256 term)
@@ -1083,10 +914,7 @@ abstract contract SimpleAggregator is
         if (term == 0) {
             term = currentTerm;
         }
-        return (
-            shareData[term].totalShare,
-            shareData[term].totalCollateralPerToken
-        );
+        return (shareData[term].totalShare, shareData[term].totalCollateralPerToken);
     }
 
     function getBondGroupIDFromTermAndPrice(uint256 term, uint256 price)
@@ -1149,11 +977,7 @@ abstract contract SimpleAggregator is
         if (term == 0) {
             term = currentTerm;
         }
-        return (
-            termInfo[term].maturity,
-            termInfo[term].strikePrice,
-            termInfo[term].SBTId
-        );
+        return (termInfo[term].maturity, termInfo[term].strikePrice, termInfo[term].SBTId);
     }
 
     /**
@@ -1168,11 +992,10 @@ abstract contract SimpleAggregator is
         expectedBalance = balance[user].balance;
         if (receivedCollaterals[user].value != 0) {
             hasReservation = true;
-            if (currentTerm > unremovedTokens[msg.sender].term) {
+            // AUDIT-FIX: SAR-25
+            if (currentTerm > receivedCollaterals[msg.sender].term) {
                 expectedBalance += _applyDecimalGap(
-                    uint256(receivedCollaterals[msg.sender].value)
-                        .mul(10**decimals)
-                        .div(
+                    uint256(receivedCollaterals[msg.sender].value).mul(10**decimals).div(
                         uint256(
                             shareData[receivedCollaterals[msg.sender].term + 1]
                                 .totalCollateralPerToken
@@ -1191,7 +1014,7 @@ abstract contract SimpleAggregator is
         if (currentTerm == 0) {
             return AggregatorPhase.BEFORE_START;
         } else if (block.timestamp <= termInfo[currentTerm].maturity) {
-            if (block.timestamp <= lastTrancheTime + 3600 * 24 * 3) {
+            if (block.timestamp <= lastTrancheTime + COOLTIME) {
                 return AggregatorPhase.COOL_TIME;
             }
             return AggregatorPhase.ACTIVE;
@@ -1207,23 +1030,11 @@ abstract contract SimpleAggregator is
     /**
      * @notice Calculate expected reward amount at this point
      */
-    function getRewardAmount(address user)
-        public
-        view
-        override
-        returns (uint64)
-    {
-        BalanceData memory userData =
-            _calcNextReward(balance[user], currentTerm);
-        return userData.rewardAmount;
+    function getRewardAmount(address user) public view override returns (uint64) {
+        return _calcNextReward(balance[user], currentTerm);
     }
 
-    function getTotalRewards()
-        public
-        view
-        override
-        returns (TotalReward[] memory)
-    {
+    function getTotalRewards() public view override returns (TotalReward[] memory) {
         return totalRewards;
     }
 
@@ -1231,33 +1042,15 @@ abstract contract SimpleAggregator is
         return !isTotalSupplyDanger;
     }
 
-    function getTotalUnmovedAssets()
-        public
-        view
-        override
-        returns (uint256, uint256)
-    {
-        return (
-            totalReceivedCollateral[currentTerm],
-            totalUnremovedTokens[currentTerm]
-        );
+    function getTotalUnmovedAssets() public view override returns (uint256, uint256) {
+        return (totalReceivedCollateral[currentTerm], totalUnremovedTokens[currentTerm]);
     }
 
-    function allowance(address owner, address spender)
-        public
-        view
-        override
-        returns (uint256)
-    {
+    function allowance(address owner, address spender) public view override returns (uint256) {
         return allowances[owner][spender];
     }
 
-    function getCollateralPerToken(uint256 term)
-        public
-        view
-        override
-        returns (uint256)
-    {
+    function getCollateralPerToken(uint256 term) public view override returns (uint256) {
         return shareData[term].totalCollateralPerToken;
     }
 
@@ -1280,22 +1073,13 @@ abstract contract SimpleAggregator is
             uint64 rewardAmount
         )
     {
-        return (
-            balance[user].balance,
-            balance[user].term,
-            balance[user].rewardAmount
-        );
+        return (balance[user].balance, balance[user].term, balance[user].rewardAmount);
     }
 
     /**
      * @notice Get suitable bond groups for current price
      */
-    function getIssuableBondGroups()
-        public
-        view
-        override
-        returns (uint256[] memory)
-    {
+    function getIssuableBondGroups() public view override returns (uint256[] memory) {
         return issuableBondGroupIds[currentTerm];
     }
 }

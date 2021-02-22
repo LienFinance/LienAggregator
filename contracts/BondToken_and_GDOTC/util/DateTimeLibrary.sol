@@ -38,16 +38,15 @@ library DateTimeLibrary {
         int256 _month = int256(month);
         int256 _day = int256(day);
 
-        int256 __days =
-            _day -
-                32075 +
-                (1461 * (_year + 4800 + (_month - 14) / 12)) /
-                4 +
-                (367 * (_month - 2 - ((_month - 14) / 12) * 12)) /
-                12 -
-                (3 * ((_year + 4900 + (_month - 14) / 12) / 100)) /
-                4 -
-                OFFSET19700101;
+        int256 __days = _day -
+            32075 +
+            (1461 * (_year + 4800 + (_month - 14) / 12)) /
+            4 +
+            (367 * (_month - 2 - ((_month - 14) / 12) * 12)) /
+            12 -
+            (3 * ((_year + 4900 + (_month - 14) / 12) / 100)) /
+            4 -
+            OFFSET19700101;
 
         _days = uint256(__days);
     }
@@ -182,11 +181,7 @@ library DateTimeLibrary {
         }
     }
 
-    function isLeapYear(uint256 timestamp)
-        internal
-        pure
-        returns (bool leapYear)
-    {
+    function isLeapYear(uint256 timestamp) internal pure returns (bool leapYear) {
         uint256 year;
         uint256 month;
         uint256 day;
@@ -206,11 +201,7 @@ library DateTimeLibrary {
         weekEnd = getDayOfWeek(timestamp) >= DOW_SAT;
     }
 
-    function getDaysInMonth(uint256 timestamp)
-        internal
-        pure
-        returns (uint256 daysInMonth)
-    {
+    function getDaysInMonth(uint256 timestamp) internal pure returns (uint256 daysInMonth) {
         uint256 year;
         uint256 month;
         uint256 day;
@@ -241,11 +232,7 @@ library DateTimeLibrary {
     }
 
     // 1 = Monday, 7 = Sunday
-    function getDayOfWeek(uint256 timestamp)
-        internal
-        pure
-        returns (uint256 dayOfWeek)
-    {
+    function getDayOfWeek(uint256 timestamp) internal pure returns (uint256 dayOfWeek) {
         uint256 _days = timestamp / SECONDS_PER_DAY;
         dayOfWeek = ((_days + 3) % 7) + 1;
     }
@@ -273,20 +260,12 @@ library DateTimeLibrary {
         hour = secs / SECONDS_PER_HOUR;
     }
 
-    function getMinute(uint256 timestamp)
-        internal
-        pure
-        returns (uint256 minute)
-    {
+    function getMinute(uint256 timestamp) internal pure returns (uint256 minute) {
         uint256 secs = timestamp % SECONDS_PER_HOUR;
         minute = secs / SECONDS_PER_MINUTE;
     }
 
-    function getSecond(uint256 timestamp)
-        internal
-        pure
-        returns (uint256 second)
-    {
+    function getSecond(uint256 timestamp) internal pure returns (uint256 second) {
         second = timestamp % SECONDS_PER_MINUTE;
     }
 

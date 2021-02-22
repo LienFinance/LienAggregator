@@ -28,10 +28,7 @@ contract SbtPricerWithStableBorder is CustomGeneralizedPricing, Ownable, Time {
     }
 
     function _updateStableBorder(uint16 stableBorderE4) internal {
-        require(
-            stableBorderE4 <= 10**4,
-            "stable border must be less than or equal to 1.0000"
-        );
+        require(stableBorderE4 <= 10**4, "stable border must be less than or equal to 1.0000");
         _stableBorderE4 = stableBorderE4;
         emit LogUpdateStableBorder(stableBorderE4);
     }
@@ -77,10 +74,7 @@ contract SbtPricerWithStableBorder is CustomGeneralizedPricing, Ownable, Time {
         uint256 bondPriceE8,
         uint256
     ) internal view override returns (bool) {
-        require(
-            untilMaturity <= 12 weeks,
-            "the bond maturity must be less than 12 weeks"
-        );
+        require(untilMaturity <= 12 weeks, "the bond maturity must be less than 12 weeks");
         uint256 strikePriceE8 = points[0];
         require(
             bondPriceE8.mul(10**4) >= strikePriceE8.mul(_stableBorderE4),

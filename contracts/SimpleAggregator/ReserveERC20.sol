@@ -8,10 +8,7 @@ contract ReserveERC20 {
     address owner;
     IERC20 collateral;
     modifier onlyOwner() {
-        require(
-            msg.sender == owner,
-            "Error: Only owner can execute this function"
-        );
+        require(msg.sender == owner, "Error: Only owner can execute this function");
         _;
     }
 

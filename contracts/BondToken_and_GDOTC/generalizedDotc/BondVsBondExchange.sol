@@ -12,8 +12,7 @@ abstract contract BondVsBondExchange is BondExchange {
      * @dev the sum of decimalsOfBond and decimalsOfOraclePrice of the bondMaker.
      * This value is constant by the restriction of `_assertBondMakerDecimals`.
      */
-    uint8 internal constant DECIMALS_OF_BOND_VALUE =
-        DECIMALS_OF_BOND + DECIMALS_OF_ORACLE_PRICE;
+    uint8 internal constant DECIMALS_OF_BOND_VALUE = DECIMALS_OF_BOND + DECIMALS_OF_ORACLE_PRICE;
 
     struct VsBondPool {
         address seller;
@@ -53,10 +52,7 @@ abstract contract BondVsBondExchange is BondExchange {
      * @dev Reverts when the pool ID does not exist.
      */
     modifier isExsistentVsBondPool(bytes32 poolID) {
-        require(
-            _vsBondPool[poolID].seller != address(0),
-            "the exchange pair does not exist"
-        );
+        require(_vsBondPool[poolID].seller != address(0), "the exchange pair does not exist");
         _;
     }
 
@@ -78,25 +74,15 @@ abstract contract BondVsBondExchange is BondExchange {
         uint256 expectedAmount,
         uint256 range
     ) external returns (uint256 bondAmount) {
-        uint256 amountInDollars =
-            _applyDecimalGap(amountInDollarsE8, 8, DECIMALS_OF_BOND_VALUE);
-        bondAmount = _exchangeBondToBond(
-            msg.sender,
-            bondID,
-            poolID,
-            bondIDs,
-            amountInDollars
-        );
+        uint256 amountInDollars = _applyDecimalGap(amountInDollarsE8, 8, DECIMALS_OF_BOND_VALUE);
+        bondAmount = _exchangeBondToBond(msg.sender, bondID, poolID, bondIDs, amountInDollars);
         _assertExpectedPriceRange(bondAmount, expectedAmount, range);
     }
 
     /**
      * @notice Returns the exchange rate including spread.
      */
-    function calcRateBondToUsd(bytes32 bondID, bytes32 poolID)
-        external
-        returns (uint256 rateE8)
-    {
+    function calcRateBondToUsd(bytes32 bondID, bytes32 poolID) external returns (uint256 rateE8) {
         (rateE8, , , ) = _calcRateBondToUsd(bondID, poolID);
     }
 
@@ -142,10 +128,7 @@ abstract contract BondVsBondExchange is BondExchange {
         BondPricerInterface bondPricerAddress,
         int16 feeBaseE4
     ) external {
-        require(
-            _vsBondPool[poolID].seller == msg.sender,
-            "not the owner of the pool ID"
-        );
+        require(_vsBondPool[poolID].seller == msg.sender, "not the owner of the pool ID");
 
         _updateVsBondPool(
             poolID,
@@ -160,10 +143,7 @@ abstract contract BondVsBondExchange is BondExchange {
      * @notice Delete the pool settings.
      */
     function deleteVsBondPool(bytes32 poolID) external {
-        require(
-            _vsBondPool[poolID].seller == msg.sender,
-            "not the owner of the pool ID"
-        );
+        require(_vsBondPool[poolID].seller == msg.sender, "not the owner of the pool ID");
 
         _deleteVsBondPool(poolID);
     }
@@ -206,20 +186,15 @@ abstract contract BondVsBondExchange is BondExchange {
             ,
 
         ) = _getVsBondPool(poolID);
-        uint256 allowanceInDollars =
-            _totalBondAllowance(
-                bondMakerForUser,
-                volatilityOracle,
-                bondPricerForUser,
-                bondIDs,
-                maturityBorder,
-                owner
-            );
-        allowanceInDollarsE8 = _applyDecimalGap(
-            allowanceInDollars,
-            DECIMALS_OF_BOND_VALUE,
-            8
+        uint256 allowanceInDollars = _totalBondAllowance(
+            bondMakerForUser,
+            volatilityOracle,
+            bondPricerForUser,
+            bondIDs,
+            maturityBorder,
+            owner
         );
+        allowanceInDollarsE8 = _applyDecimalGap(allowanceInDollars, DECIMALS_OF_BOND_VALUE, 8);
     }
 
     /**
@@ -248,20 +223,13 @@ abstract contract BondVsBondExchange is BondExchange {
             require(isBondSale, "This pool is for buying bond");
         }
 
-        (ERC20 bondToken, uint256 maturity, , ) =
-            _getBond(_bondMakerContract, bondID);
+        (ERC20 bondToken, uint256 maturity, , ) = _getBond(_bondMakerContract, bondID);
         require(address(bondToken) != address(0), "the bond is not registered");
 
         {
             (uint256 rateE8, , , ) = _calcRateBondToUsd(bondID, poolID);
-            require(
-                rateE8 > MIN_EXCHANGE_RATE_E8,
-                "exchange rate is too small"
-            );
-            require(
-                rateE8 < MAX_EXCHANGE_RATE_E8,
-                "exchange rate is too large"
-            );
+            require(rateE8 > MIN_EXCHANGE_RATE_E8, "exchange rate is too small");
+            require(rateE8 < MAX_EXCHANGE_RATE_E8, "exchange rate is too large");
             bondAmount =
                 _applyDecimalGap(
                     amountInDollars,
@@ -282,10 +250,7 @@ abstract contract BondVsBondExchange is BondExchange {
                 ,
 
             ) = _getVsBondPool(poolID);
-            require(
-                bondToken.transferFrom(seller, buyer, bondAmount),
-                "fail to transfer bonds"
-            );
+            require(bondToken.transferFrom(seller, buyer, bondAmount), "fail to transfer bonds");
 
             address buyerTmp = buyer; // avoid `stack too deep` error
             uint256 amountInDollarsTmp = amountInDollars; // avoid `stack too deep` error
@@ -304,16 +269,8 @@ abstract contract BondVsBondExchange is BondExchange {
             );
         }
 
-        uint256 volumeE8 =
-            _applyDecimalGap(amountInDollars, DECIMALS_OF_BOND_VALUE, 8);
-        emit LogExchangeBondToBond(
-            buyer,
-            bondID,
-            poolID,
-            bondAmount,
-            amountInDollars,
-            volumeE8
-        );
+        uint256 volumeE8 = _applyDecimalGap(amountInDollars, DECIMALS_OF_BOND_VALUE, 8);
+        emit LogExchangeBondToBond(buyer, bondID, poolID, bondAmount, amountInDollars, volumeE8);
     }
 
     function _calcRateBondToUsd(bytes32 bondID, bytes32 poolID)
@@ -325,13 +282,8 @@ abstract contract BondVsBondExchange is BondExchange {
             int256 spreadE8
         )
     {
-        (, , , , BondPricerInterface bondPricer, int16 feeBaseE4, ) =
-            _getVsBondPool(poolID);
-        (bondPriceE8, spreadE8) = _calcBondPriceAndSpread(
-            bondPricer,
-            bondID,
-            feeBaseE4
-        );
+        (, , , , BondPricerInterface bondPricer, int16 feeBaseE4, ) = _getVsBondPool(poolID);
+        (bondPriceE8, spreadE8) = _calcBondPriceAndSpread(bondPricer, bondID, feeBaseE4);
         bondPriceE8 = _calcUsdPrice(bondPriceE8);
         swapPairPriceE8 = 10**8;
         rateE8 = bondPriceE8.mul(uint256(10**8 + spreadE8)) / 10**8;
@@ -343,14 +295,7 @@ abstract contract BondVsBondExchange is BondExchange {
         returns (bytes32 poolID)
     {
         return
-            keccak256(
-                abi.encode(
-                    "Bond vs SBT exchange",
-                    address(this),
-                    seller,
-                    bondMakerForUser
-                )
-            );
+            keccak256(abi.encode("Bond vs SBT exchange", address(this), seller, bondMakerForUser));
     }
 
     function _setVsBondPool(
@@ -371,10 +316,7 @@ abstract contract BondVsBondExchange is BondExchange {
             address(bondPricerForUser) != address(0),
             "bondPricerForUser should be non-zero address"
         );
-        require(
-            address(bondPricer) != address(0),
-            "bondPricer should be non-zero address"
-        );
+        require(address(bondPricer) != address(0), "bondPricer should be non-zero address");
         _assertBondMakerDecimals(bondMakerForUser);
         _vsBondPool[poolID] = VsBondPool({
             seller: seller,
@@ -395,10 +337,7 @@ abstract contract BondVsBondExchange is BondExchange {
         int16 feeBaseE4
     ) internal returns (bytes32 poolID) {
         poolID = _generateVsBondPoolID(seller, address(bondMakerForUser));
-        require(
-            _vsBondPool[poolID].seller == address(0),
-            "the pool ID already exists"
-        );
+        require(_vsBondPool[poolID].seller == address(0), "the pool ID already exists");
 
         _assertBondMakerDecimals(bondMakerForUser);
         _setVsBondPool(
@@ -427,8 +366,7 @@ abstract contract BondVsBondExchange is BondExchange {
         BondPricerInterface bondPricer,
         int16 feeBaseE4
     ) internal isExsistentVsBondPool(poolID) {
-        (address seller, BondMakerInterface bondMakerForUser, , , , , ) =
-            _getVsBondPool(poolID);
+        (address seller, BondMakerInterface bondMakerForUser, , , , , ) = _getVsBondPool(poolID);
         _setVsBondPool(
             poolID,
             seller,
@@ -447,10 +385,7 @@ abstract contract BondVsBondExchange is BondExchange {
         );
     }
 
-    function _deleteVsBondPool(bytes32 poolID)
-        internal
-        isExsistentVsBondPool(poolID)
-    {
+    function _deleteVsBondPool(bytes32 poolID) internal isExsistentVsBondPool(poolID) {
         delete _vsBondPool[poolID];
 
         emit LogDeleteVsBondPool(poolID);
@@ -504,15 +439,11 @@ abstract contract BondVsBondExchange is BondExchange {
                 uint256 maturity;
                 (bond, maturity, , ) = _getBond(bondMaker, bondIDs[i]);
                 if (maturity > maturityBorder) continue; // skip transaction
-                uint256 untilMaturity =
-                    maturity.sub(
-                        _getBlockTimestampSec(),
-                        "the bond should not have expired"
-                    );
-                oracleVolE8 = _getVolatility(
-                    volatilityOracle,
-                    untilMaturity.toUint64()
+                uint256 untilMaturity = maturity.sub(
+                    _getBlockTimestampSec(),
+                    "the bond should not have expired"
                 );
+                oracleVolE8 = _getVolatility(volatilityOracle, untilMaturity.toUint64());
             }
 
             uint256 allowance = bond.allowance(sender, address(this));
@@ -521,30 +452,21 @@ abstract contract BondVsBondExchange is BondExchange {
             BondMakerInterface bondMakerTmp = bondMaker; // avoid `stack too deep` error
             BondPricerInterface bondPricerTmp = bondPricer; // avoid `stack too deep` error
             bytes32 bondIDTmp = bondIDs[i]; // avoid `stack too deep` error
-            uint256 bondPrice =
-                _calcBondPrice(
-                    bondMakerTmp,
-                    bondPricerTmp,
-                    bondIDTmp,
-                    oraclePriceE8,
-                    oracleVolE8
-                );
+            uint256 bondPrice = _calcBondPrice(
+                bondMakerTmp,
+                bondPricerTmp,
+                bondIDTmp,
+                oraclePriceE8,
+                oracleVolE8
+            );
             if (bondPrice == 0) continue; // skip transaction
 
             if (rest <= allowance.mul(bondPrice)) {
                 // assert(ceil(rest / bondPrice) <= allowance);
-                return
-                    bond.transferFrom(
-                        sender,
-                        recipient,
-                        rest.divRoundUp(bondPrice)
-                    );
+                return bond.transferFrom(sender, recipient, rest.divRoundUp(bondPrice));
             }
 
-            require(
-                bond.transferFrom(sender, recipient, allowance),
-                "fail to transfer bonds"
-            );
+            require(bond.transferFrom(sender, recipient, allowance), "fail to transfer bonds");
             rest -= allowance * bondPrice;
         }
 
@@ -572,15 +494,11 @@ abstract contract BondVsBondExchange is BondExchange {
                 uint256 maturity;
                 (bond, maturity, , ) = _getBond(bondMaker, bondIDs[i]);
                 if (maturity > maturityBorder) continue; // skip
-                uint256 untilMaturity =
-                    maturity.sub(
-                        _getBlockTimestampSec(),
-                        "the bond should not have expired"
-                    );
-                oracleVolE8 = _getVolatility(
-                    volatilityOracle,
-                    untilMaturity.toUint64()
+                uint256 untilMaturity = maturity.sub(
+                    _getBlockTimestampSec(),
+                    "the bond should not have expired"
                 );
+                oracleVolE8 = _getVolatility(volatilityOracle, untilMaturity.toUint64());
             }
 
             uint256 balance = bond.balanceOf(sender);
@@ -589,19 +507,16 @@ abstract contract BondVsBondExchange is BondExchange {
             uint256 allowance = bond.allowance(sender, address(this));
             require(allowance != 0, "includes no approved bond");
 
-            uint256 bondPrice =
-                _calcBondPrice(
-                    bondMaker,
-                    bondPricer,
-                    bondIDs[i],
-                    oraclePriceE8,
-                    oracleVolE8
-                );
+            uint256 bondPrice = _calcBondPrice(
+                bondMaker,
+                bondPricer,
+                bondIDs[i],
+                oraclePriceE8,
+                oracleVolE8
+            );
             require(bondPrice != 0, "includes worthless bond");
 
-            allowanceInDollars = allowanceInDollars.add(
-                allowance.mul(bondPrice)
-            );
+            allowanceInDollars = allowanceInDollars.add(allowance.mul(bondPrice));
         }
     }
 
@@ -619,10 +534,7 @@ abstract contract BondVsBondExchange is BondExchange {
         {
             (, uint256 maturity, , ) = _getBond(bondMaker, bondID);
             untilMaturity = maturity
-                .sub(
-                _getBlockTimestampSec(),
-                "the bond should not have expired"
-            )
+                .sub(_getBlockTimestampSec(), "the bond should not have expired")
                 .toInt256();
         }
 
@@ -630,8 +542,11 @@ abstract contract BondVsBondExchange is BondExchange {
         uint256[] memory points;
         {
             bool isKnownBondType;
-            (isKnownBondType, bondType, points) = _bondShapeDetector
-                .getBondTypeByID(bondMaker, bondID, BondType.NONE);
+            (isKnownBondType, bondType, points) = _bondShapeDetector.getBondTypeByID(
+                bondMaker,
+                bondID,
+                BondType.NONE
+            );
             if (!isKnownBondType) {
                 revert("unknown bond type");
                 // return 0;

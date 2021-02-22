@@ -1,26 +1,19 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma experimental ABIEncoderV2;
+// AUDIT-FIX: BRR-01
 pragma solidity 0.7.1;
+pragma experimental ABIEncoderV2;
 
 import "../BondToken_and_GDOTC/bondMaker/BondMakerInterface.sol";
 import "../Interfaces/BondRegistratorInterface.sol";
 
 contract BondRegistrator is BondRegistratorInterface {
-    function getFnMap(Points[] memory points)
-        public
-        pure
-        override
-        returns (bytes memory fnMap)
-    {
+    // AUDIT-FIX: BRR-02
+    function getFnMap(Points[] memory points) public pure override returns (bytes memory) {
         uint256[] memory polyline = _zipLines(points);
         return abi.encode(polyline);
     }
 
-    function _zipLines(Points[] memory points)
-        internal
-        pure
-        returns (uint256[] memory lines)
-    {
+    function _zipLines(Points[] memory points) internal pure returns (uint256[] memory lines) {
         lines = new uint256[](points.length);
         for (uint256 i = 0; i < points.length; i++) {
             uint256 x1U256 = uint256(points[i].x1) << (64 + 64 + 64); // uint64
@@ -42,12 +35,7 @@ contract BondRegistrator is BondRegistratorInterface {
     ) public override returns (bytes32) {
         Points[] memory SBTPoints = new Points[](2);
         SBTPoints[0] = Points(0, 0, sbtStrikePrice, sbtStrikePrice);
-        SBTPoints[1] = Points(
-            sbtStrikePrice,
-            sbtStrikePrice,
-            sbtStrikePrice * 2,
-            sbtStrikePrice
-        );
+        SBTPoints[1] = Points(sbtStrikePrice, sbtStrikePrice, sbtStrikePrice * 2, sbtStrikePrice);
         return registerBond(bondMaker, SBTPoints, maturity);
     }
 
@@ -55,6 +43,7 @@ contract BondRegistrator is BondRegistratorInterface {
      * @notice Create exotic option function mappings and register bonds, then register new bond group
      * @param SBTId SBT should be already registered and use SBT bond ID
      */
+    // AUDIT-FIX: BRR-03 Not-Fixed: Unnecessary modification. checked in bondmaker contract
     function registerBondGroup(
         BondMakerInterface bondMaker,
         uint256 callStrikePrice,
@@ -64,8 +53,7 @@ contract BondRegistrator is BondRegistratorInterface {
     ) public override returns (uint256 bondGroupId) {
         bytes32[] memory bondIds = new bytes32[](4);
         uint64 lev2EndPoint = uint64(callStrikePrice * 2) - sbtStrikePrice;
-        uint64 maxProfitVolShort =
-            uint64((callStrikePrice - sbtStrikePrice) / 2);
+        uint64 maxProfitVolShort = uint64((callStrikePrice - sbtStrikePrice) / 2);
         bondIds[0] = SBTId;
         {
             Points[] memory CallPoints = new Points[](2);
@@ -105,18 +93,8 @@ contract BondRegistrator is BondRegistratorInterface {
                 uint64(callStrikePrice),
                 maxProfitVolShort
             );
-            VolShortPoints[2] = Points(
-                uint64(callStrikePrice),
-                maxProfitVolShort,
-                lev2EndPoint,
-                0
-            );
-            VolShortPoints[3] = Points(
-                lev2EndPoint,
-                0,
-                lev2EndPoint + sbtStrikePrice,
-                0
-            );
+            VolShortPoints[2] = Points(uint64(callStrikePrice), maxProfitVolShort, lev2EndPoint, 0);
+            VolShortPoints[3] = Points(lev2EndPoint, 0, lev2EndPoint + sbtStrikePrice, 0);
 
             bondIds[3] = registerBond(bondMaker, VolShortPoints, maturity);
         }

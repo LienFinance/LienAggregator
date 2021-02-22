@@ -9,10 +9,7 @@ import "../util/Polyline.sol";
 contract BondMakerHelper is Polyline {
     event LogRegisterSbt(bytes32 bondID);
     event LogRegisterLbt(bytes32 bondID);
-    event LogRegisterBondAndBondGroup(
-        uint256 indexed bondGroupID,
-        bytes32[] bondIDs
-    );
+    event LogRegisterBondAndBondGroup(uint256 indexed bondGroupID, bytes32[] bondIDs);
 
     function registerSbt(
         address bondMakerAddress,
@@ -77,11 +74,7 @@ contract BondMakerHelper is Polyline {
         } catch {}
 
         bytes[] memory fnMaps = _getSbtAndLbtFnMap(strikePrice);
-        bondGroupID = _registerBondAndBondGroup(
-            bondMakerAddress,
-            fnMaps,
-            maturity
-        );
+        bondGroupID = _registerBondAndBondGroup(bondMakerAddress, fnMaps, maturity);
     }
 
     function registerExoticBondAndBondGroup(
@@ -96,23 +89,17 @@ contract BondMakerHelper is Polyline {
         try bondMaker.oracleAddress() returns (PriceOracleInterface oracle) {
             uint256 spotPrice = oracle.latestPrice();
             require(
-                sbtstrikePrice >= spotPrice / 10 &&
-                    sbtstrikePrice <= spotPrice * 10,
+                sbtstrikePrice >= spotPrice / 10 && sbtstrikePrice <= spotPrice * 10,
                 "must be 0.1 <= S/K <= 10"
             );
             require(
-                lbtStrikePrice >= spotPrice / 10 &&
-                    lbtStrikePrice <= spotPrice * 10,
+                lbtStrikePrice >= spotPrice / 10 && lbtStrikePrice <= spotPrice * 10,
                 "must be 0.1 <= S/K <= 10"
             );
         } catch {}
 
         bytes[] memory fnMaps = _getExoticFnMap(sbtstrikePrice, lbtStrikePrice);
-        bondGroupID = _registerBondAndBondGroup(
-            bondMakerAddress,
-            fnMaps,
-            maturity
-        );
+        bondGroupID = _registerBondAndBondGroup(bondMakerAddress, fnMaps, maturity);
     }
 
     function registerBondAndBondGroup(
@@ -120,34 +107,18 @@ contract BondMakerHelper is Polyline {
         bytes[] memory fnMaps,
         uint256 maturity
     ) external returns (uint256 bondGroupID) {
-        bondGroupID = _registerBondAndBondGroup(
-            bondMakerAddress,
-            fnMaps,
-            maturity
-        );
+        bondGroupID = _registerBondAndBondGroup(bondMakerAddress, fnMaps, maturity);
     }
 
-    function getSbtFnMap(uint64 strikePrice)
-        external
-        pure
-        returns (bytes memory fnMap)
-    {
+    function getSbtFnMap(uint64 strikePrice) external pure returns (bytes memory fnMap) {
         fnMap = _getSbtFnMap(strikePrice);
     }
 
-    function getLbtFnMap(uint64 strikePrice)
-        external
-        pure
-        returns (bytes memory fnMap)
-    {
+    function getLbtFnMap(uint64 strikePrice) external pure returns (bytes memory fnMap) {
         fnMap = _getLbtFnMap(strikePrice);
     }
 
-    function getSbtAndLbtFnMap(uint64 strikePrice)
-        external
-        pure
-        returns (bytes[] memory fnMaps)
-    {
+    function getSbtAndLbtFnMap(uint64 strikePrice) external pure returns (bytes[] memory fnMaps) {
         fnMaps = _getSbtAndLbtFnMap(strikePrice);
     }
 
@@ -175,8 +146,7 @@ contract BondMakerHelper is Polyline {
             bytes32 bondID = bondMaker.generateBondID(maturity, fnMaps[j]);
             (address bondAddress, , , ) = bondMaker.getBond(bondID);
             if (bondAddress == address(0)) {
-                (bytes32 returnedBondID, , ) =
-                    bondMaker.registerNewBond(maturity, fnMaps[j]);
+                (bytes32 returnedBondID, , ) = bondMaker.registerNewBond(maturity, fnMaps[j]);
                 require(
                     returnedBondID == bondID,
                     "system error: bondID was not generated as expected"
@@ -193,11 +163,7 @@ contract BondMakerHelper is Polyline {
     /**
      * @return fnMaps divided into SBT and LBT
      */
-    function _getSbtAndLbtFnMap(uint64 strikePrice)
-        internal
-        pure
-        returns (bytes[] memory fnMaps)
-    {
+    function _getSbtAndLbtFnMap(uint64 strikePrice) internal pure returns (bytes[] memory fnMaps) {
         require(strikePrice <= uint64(-1) / 2, "the strike price is too large");
 
         fnMaps = new bytes[](2);
@@ -218,30 +184,21 @@ contract BondMakerHelper is Polyline {
             "the SBT strike price must be less than the LBT strike price"
         );
         uint64 semiSbtStrikePrice = lbtStrikePrice - sbtStrikePrice;
-        require(
-            semiSbtStrikePrice % 2 == 0,
-            "the triangle peak must be integer"
-        );
+        require(semiSbtStrikePrice % 2 == 0, "the triangle peak must be integer");
         uint64 trianglePeak = semiSbtStrikePrice / 2;
         uint64 triangleRightmost = semiSbtStrikePrice + lbtStrikePrice;
         require(
             triangleRightmost > lbtStrikePrice,
             "the triangle rightmost must be more than the LBT strike price"
         );
-        require(
-            triangleRightmost <= uint64(-1) - sbtStrikePrice,
-            "the strike price is too large"
-        );
+        require(triangleRightmost <= uint64(-1) - sbtStrikePrice, "the strike price is too large");
 
         uint256[] memory semiSbtPolyline;
         {
             Point[] memory points = new Point[](3);
             points[0] = Point(sbtStrikePrice, 0);
             points[1] = Point(triangleRightmost, semiSbtStrikePrice);
-            points[2] = Point(
-                triangleRightmost + sbtStrikePrice,
-                semiSbtStrikePrice
-            );
+            points[2] = Point(triangleRightmost + sbtStrikePrice, semiSbtStrikePrice);
             semiSbtPolyline = _calcPolyline(points);
         }
 
@@ -262,11 +219,7 @@ contract BondMakerHelper is Polyline {
         fnMaps[3] = abi.encode(trianglePolyline);
     }
 
-    function _getSbtFnMap(uint64 strikePrice)
-        internal
-        pure
-        returns (bytes memory fnMap)
-    {
+    function _getSbtFnMap(uint64 strikePrice) internal pure returns (bytes memory fnMap) {
         Point[] memory points = new Point[](2);
         points[0] = Point(strikePrice, strikePrice);
         points[1] = Point(2 * strikePrice, strikePrice);
@@ -275,11 +228,7 @@ contract BondMakerHelper is Polyline {
         fnMap = abi.encode(polyline);
     }
 
-    function _getLbtFnMap(uint64 strikePrice)
-        internal
-        pure
-        returns (bytes memory fnMap)
-    {
+    function _getLbtFnMap(uint64 strikePrice) internal pure returns (bytes memory fnMap) {
         Point[] memory points = new Point[](2);
         points[0] = Point(strikePrice, 0);
         points[1] = Point(2 * strikePrice, strikePrice);
