@@ -198,11 +198,7 @@ contract DetectBondShape is Polyline {
         return (false, points);
     }
 
-    function _isSBT(bytes memory fnMap)
-        internal
-        pure
-        returns (bool isOk, uint256[] memory points)
-    {
+    function _isSBT(bytes memory fnMap) internal pure returns (bool isOk, uint256[] memory points) {
         uint256[] memory zippedLines = decodePolyline(fnMap);
         if (zippedLines.length != 2) {
             return (false, points);

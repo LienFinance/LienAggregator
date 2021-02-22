@@ -49,11 +49,7 @@ contract testBondMaker2 {
         return fnMapIDTofnMap[fnMapID];
     }
 
-    function zipLines(uint64[] memory points)
-        internal
-        pure
-        returns (uint256[] memory lines)
-    {
+    function zipLines(uint64[] memory points) internal pure returns (uint256[] memory lines) {
         lines = new uint256[](points.length / 4);
         for (uint256 i = 0; i < points.length / 4; i++) {
             uint256 x1U256 = uint256(points[4 * i]) << (64 + 64 + 64); // uint64

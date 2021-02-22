@@ -52,25 +52,13 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
         uint8 decimalsOfBond,
         uint8 decimalsOfOraclePrice
     ) {
-        require(
-            address(oracleAddress) != address(0),
-            "oracleAddress should be non-zero address"
-        );
+        require(address(oracleAddress) != address(0), "oracleAddress should be non-zero address");
         _oracleContract = oracleAddress;
-        require(
-            decimalsOfBond < 19,
-            "the decimals of bond must be less than 19"
-        );
+        require(decimalsOfBond < 19, "the decimals of bond must be less than 19");
         DECIMALS_OF_BOND = decimalsOfBond;
-        require(
-            decimalsOfOraclePrice < 19,
-            "the decimals of oracle price must be less than 19"
-        );
+        require(decimalsOfOraclePrice < 19, "the decimals of oracle price must be less than 19");
         DECIMALS_OF_ORACLE_PRICE = decimalsOfOraclePrice;
-        require(
-            feeTaker != address(0),
-            "the fee taker must be non-zero address"
-        );
+        require(feeTaker != address(0), "the fee taker must be non-zero address");
         FEE_TAKER = feeTaker;
         require(maturityScale != 0, "MATURITY_SCALE must be positive");
         MATURITY_SCALE = maturityScale;
@@ -95,10 +83,7 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
         )
     {
         _assertBeforeMaturity(maturity);
-        require(
-            maturity < _getBlockTimestampSec() + 365 days,
-            "the maturity is too far"
-        );
+        require(maturity < _getBlockTimestampSec() + 365 days, "the maturity is too far");
         require(
             maturity % MATURITY_SCALE == 0,
             "the maturity must be the multiple of MATURITY_SCALE"
@@ -125,18 +110,14 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
 
             LineSegment[] memory segments = _registeredFnMap[fnMapID];
             assertPolyline(segments);
-            require(
-                !_isBondWorthless(segments),
-                "the bond is 0-value at any price"
-            );
+            require(!_isBondWorthless(segments), "the bond is 0-value at any price");
             sbtStrikePrice = _getSbtStrikePrice(segments);
         } else {
             LineSegment[] memory segments = _registeredFnMap[fnMapID];
             sbtStrikePrice = _getSbtStrikePrice(segments);
         }
 
-        BondTokenInterface bondTokenContract =
-            _createNewBondToken(maturity, fnMap);
+        BondTokenInterface bondTokenContract = _createNewBondToken(maturity, fnMap);
 
         // Set bond info to storage.
         _bonds[bondID] = BondInfo({
@@ -163,22 +144,13 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
      * In the case of SBT and LBT with the strike price 100, x = 0,100,200 are the unique points
      * and the number is 3.
      */
-    function _assertBondGroup(bytes32[] memory bondIDs, uint256 maturity)
-        internal
-        view
-    {
-        require(
-            bondIDs.length >= 2,
-            "the bond group should consist of 2 or more bonds"
-        );
+    function _assertBondGroup(bytes32[] memory bondIDs, uint256 maturity) internal view {
+        require(bondIDs.length >= 2, "the bond group should consist of 2 or more bonds");
 
         uint256 numOfBreakPoints = 0;
         for (uint256 i = 0; i < bondIDs.length; i++) {
             BondInfo storage bond = _bonds[bondIDs[i]];
-            require(
-                bond.maturity == maturity,
-                "the maturity of the bonds must be same"
-            );
+            require(bond.maturity == maturity, "the maturity of the bonds must be same");
             LineSegment[] storage polyline = _registeredFnMap[bond.fnMapID];
             numOfBreakPoints = numOfBreakPoints.add(polyline.length);
         }
@@ -215,8 +187,7 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
             for (uint256 i = 0; i < bondIDs.length; i++) {
                 BondInfo storage bond = _bonds[bondIDs[i]];
                 LineSegment[] storage segments = _registeredFnMap[bond.fnMapID];
-                (uint256 segmentIndex, bool ok) =
-                    _correspondSegment(segments, rate);
+                (uint256 segmentIndex, bool ok) = _correspondSegment(segments, rate);
 
                 require(ok, "invalid domain expression");
 
@@ -226,9 +197,7 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
                     // a/b + c/d = (ad+bc)/bd
                     // totalBondPrice += (n / d);
                     // N = D*n + N*d, D = D*d
-                    totalBondPriceN = totalBondPriceD.mul(n).add(
-                        totalBondPriceN.mul(d)
-                    );
+                    totalBondPriceN = totalBondPriceD.mul(n).add(totalBondPriceN.mul(d));
                     totalBondPriceD = totalBondPriceD.mul(d);
                 }
             }
@@ -262,10 +231,7 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
         (, , uint64 sbtStrikePrice, ) = getBond(bondIDs[0]);
         for (uint256 i = 1; i < bondIDs.length; i++) {
             (, , uint64 strikePrice, ) = getBond(bondIDs[i]);
-            require(
-                strikePrice == 0,
-                "except the first bond must not be pure SBT"
-            );
+            require(strikePrice == 0, "except the first bond must not be pure SBT");
         }
 
         // Get and increment next bond group ID
@@ -284,12 +250,11 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
      * of bonds in the bond group equals to the token allowance except for about 0.2% fee (accurately 2/1002).
      * The fee send to Lien token contract when liquidateBond() or reverseBondGroupToCollateral().
      */
-    function _issueNewBonds(
-        uint256 bondGroupID,
-        uint256 collateralAmountWithFee
-    ) internal returns (uint256 bondAmount) {
-        (bytes32[] memory bondIDs, uint256 maturity) =
-            getBondGroup(bondGroupID);
+    function _issueNewBonds(uint256 bondGroupID, uint256 collateralAmountWithFee)
+        internal
+        returns (uint256 bondAmount)
+    {
+        (bytes32[] memory bondIDs, uint256 maturity) = getBondGroup(bondGroupID);
         _assertNonEmptyBondGroup(bondIDs);
         _assertBeforeMaturity(maturity);
 
@@ -315,14 +280,15 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
      * @param bondGroupID is the bond group ID.
      * @param bondAmount is the redeemed bond amount (decimal: 8).
      */
-    function reverseBondGroupToCollateral(
-        uint256 bondGroupID,
-        uint256 bondAmount
-    ) external virtual override returns (bool) {
+    function reverseBondGroupToCollateral(uint256 bondGroupID, uint256 bondAmount)
+        external
+        virtual
+        override
+        returns (bool)
+    {
         require(bondAmount != 0, "the bond amount must be non-zero");
 
-        (bytes32[] memory bondIDs, uint256 maturity) =
-            getBondGroup(bondGroupID);
+        (bytes32[] memory bondIDs, uint256 maturity) = getBondGroup(bondGroupID);
         _assertNonEmptyBondGroup(bondIDs);
         _assertBeforeMaturity(maturity);
         for (uint256 i = 0; i < bondIDs.length; i++) {
@@ -330,22 +296,17 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
         }
 
         uint8 decimalsOfCollateral = _getCollateralDecimals();
-        uint256 collateralAmount =
-            _applyDecimalGap(
-                bondAmount,
-                DECIMALS_OF_BOND,
-                decimalsOfCollateral
-            );
+        uint256 collateralAmount = _applyDecimalGap(
+            bondAmount,
+            DECIMALS_OF_BOND,
+            decimalsOfCollateral
+        );
 
         uint256 fee = collateralAmount.mul(2).div(1000); // collateral:fee = 1000:2
         _sendCollateralTo(payable(FEE_TAKER), fee);
         _sendCollateralTo(msg.sender, collateralAmount);
 
-        emit LogReverseBondGroupToCollateral(
-            bondGroupID,
-            msg.sender,
-            collateralAmount
-        );
+        emit LogReverseBondGroupToCollateral(bondGroupID, msg.sender, collateralAmount);
 
         return true;
     }
@@ -362,16 +323,11 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
         uint256 amount,
         bytes32[] calldata exceptionBonds
     ) external virtual override returns (bool) {
-        (bytes32[] memory inputIDs, uint256 inputMaturity) =
-            getBondGroup(inputBondGroupID);
+        (bytes32[] memory inputIDs, uint256 inputMaturity) = getBondGroup(inputBondGroupID);
         _assertNonEmptyBondGroup(inputIDs);
-        (bytes32[] memory outputIDs, uint256 outputMaturity) =
-            getBondGroup(outputBondGroupID);
+        (bytes32[] memory outputIDs, uint256 outputMaturity) = getBondGroup(outputBondGroupID);
         _assertNonEmptyBondGroup(outputIDs);
-        require(
-            inputMaturity == outputMaturity,
-            "cannot exchange bonds with different maturities"
-        );
+        require(inputMaturity == outputMaturity, "cannot exchange bonds with different maturities");
         _assertBeforeMaturity(inputMaturity);
 
         bool flag;
@@ -414,12 +370,7 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
             "All the exceptionBonds need to be included both in input and output"
         );
 
-        emit LogExchangeEquivalentBonds(
-            msg.sender,
-            inputBondGroupID,
-            outputBondGroupID,
-            amount
-        );
+        emit LogExchangeEquivalentBonds(msg.sender, inputBondGroupID, outputBondGroupID, amount);
 
         return true;
     }
@@ -437,34 +388,23 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
         override
         returns (uint256 totalPayment)
     {
-        (bytes32[] memory bondIDs, uint256 maturity) =
-            getBondGroup(bondGroupID);
+        (bytes32[] memory bondIDs, uint256 maturity) = getBondGroup(bondGroupID);
         _assertNonEmptyBondGroup(bondIDs);
-        require(
-            _getBlockTimestampSec() >= maturity,
-            "the bond has not expired yet"
-        );
+        require(_getBlockTimestampSec() >= maturity, "the bond has not expired yet");
 
         uint256 latestID = _oracleContract.latestId();
-        require(
-            latestID != 0,
-            "system error: the ID of oracle data should not be zero"
-        );
+        require(latestID != 0, "system error: the ID of oracle data should not be zero");
 
-        uint256 price =
-            _getPriceOn(
-                maturity,
-                (oracleHintID != 0 && oracleHintID <= latestID)
-                    ? oracleHintID
-                    : latestID
-            );
+        uint256 price = _getPriceOn(
+            maturity,
+            (oracleHintID != 0 && oracleHintID <= latestID) ? oracleHintID : latestID
+        );
         require(price != 0, "price should be non-zero value");
         require(price < 2**64, "price should be less than 2^64");
 
         for (uint256 i = 0; i < bondIDs.length; i++) {
             bytes32 bondID = bondIDs[i];
-            uint256 payment =
-                _sendCollateralToBondTokenContract(bondID, uint64(price));
+            uint256 payment = _sendCollateralToBondTokenContract(bondID, uint64(price));
             totalPayment = totalPayment.add(payment);
         }
 
@@ -478,12 +418,7 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
         return _collateralAddress();
     }
 
-    function oracleAddress()
-        external
-        view
-        override
-        returns (PriceOracleInterface)
-    {
+    function oracleAddress() external view override returns (PriceOracleInterface) {
         return _oracleContract;
     }
 
@@ -532,12 +467,7 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
     /**
      * @dev Returns polyline for the fnMapID.
      */
-    function getFnMap(bytes32 fnMapID)
-        public
-        view
-        override
-        returns (bytes memory fnMap)
-    {
+    function getFnMap(bytes32 fnMapID) public view override returns (bytes memory fnMap) {
         LineSegment[] storage segments = _registeredFnMap[fnMapID];
         uint256[] memory polyline = new uint256[](segments.length);
         for (uint256 i = 0; i < segments.length; i++) {
@@ -555,10 +485,7 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
         override
         returns (bytes32[] memory bondIDs, uint256 maturity)
     {
-        require(
-            bondGroupID < _nextBondGroupID,
-            "the bond group does not exist"
-        );
+        require(bondGroupID < _nextBondGroupID, "the bond group does not exist");
         BondGroup memory bondGroup = _bondGroupList[bondGroupID];
         bondIDs = bondGroup.bondIDs;
         maturity = bondGroup.maturity;
@@ -567,12 +494,7 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
     /**
      * @dev Returns keccak256 for the fnMap.
      */
-    function generateFnMapID(bytes memory fnMap)
-        public
-        pure
-        override
-        returns (bytes32 fnMapID)
-    {
+    function generateFnMapID(bytes memory fnMap) public pure override returns (bytes32 fnMapID) {
         return keccak256(fnMap);
     }
 
@@ -595,10 +517,7 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
     ) internal {
         BondTokenInterface bondTokenContract = _bonds[bondID].contractInstance;
         _assertRegisteredBond(bondTokenContract);
-        require(
-            bondTokenContract.mint(account, amount),
-            "failed to mint bond token"
-        );
+        require(bondTokenContract.mint(account, amount), "failed to mint bond token");
     }
 
     function _burnBond(
@@ -608,10 +527,7 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
     ) internal {
         BondTokenInterface bondTokenContract = _bonds[bondID].contractInstance;
         _assertRegisteredBond(bondTokenContract);
-        require(
-            bondTokenContract.simpleBurn(account, amount),
-            "failed to burn bond token"
-        );
+        require(bondTokenContract.simpleBurn(account, amount), "failed to burn bond token");
     }
 
     function _sendCollateralToBondTokenContract(bytes32 bondID, uint64 price)
@@ -621,8 +537,7 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
         BondTokenInterface bondTokenContract = _bonds[bondID].contractInstance;
         _assertRegisteredBond(bondTokenContract);
 
-        LineSegment[] storage segments =
-            _registeredFnMap[_bonds[bondID].fnMapID];
+        LineSegment[] storage segments = _registeredFnMap[_bonds[bondID].fnMapID];
 
         (uint256 segmentIndex, bool ok) = _correspondSegment(segments, price);
         assert(ok); // not found a segment whose price range include current price
@@ -637,11 +552,7 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
 
         if (expiredFlag) {
             uint8 decimalsOfCollateral = _getCollateralDecimals();
-            collateralAmount = _applyDecimalGap(
-                totalSupply,
-                DECIMALS_OF_BOND,
-                decimalsOfCollateral
-            )
+            collateralAmount = _applyDecimalGap(totalSupply, DECIMALS_OF_BOND, decimalsOfCollateral)
                 .mul(n)
                 .div(d);
             _sendCollateralTo(address(bondTokenContract), collateralAmount);
@@ -657,10 +568,7 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
      * @param hintID is the ID of the oracle data you are looking for.
      * @return priceE8 (10^-8 USD)
      */
-    function _getPriceOn(uint256 timestamp, uint256 hintID)
-        internal
-        returns (uint256 priceE8)
-    {
+    function _getPriceOn(uint256 timestamp, uint256 hintID) internal returns (uint256 priceE8) {
         require(
             _oracleContract.getTimestamp(hintID) > timestamp,
             "there is no price data after maturity"
@@ -699,14 +607,8 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
         quoteAmount = baseAmount.mul(10**n).div(10**d);
     }
 
-    function _assertRegisteredBond(BondTokenInterface bondTokenContract)
-        internal
-        pure
-    {
-        require(
-            address(bondTokenContract) != address(0),
-            "the bond is not registered"
-        );
+    function _assertRegisteredBond(BondTokenInterface bondTokenContract) internal pure {
+        require(address(bondTokenContract) != address(0), "the bond is not registered");
     }
 
     function _assertNonEmptyBondGroup(bytes32[] memory bondIDs) internal pure {
@@ -714,17 +616,10 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
     }
 
     function _assertBeforeMaturity(uint256 maturity) internal view {
-        require(
-            _getBlockTimestampSec() < maturity,
-            "the maturity has already expired"
-        );
+        require(_getBlockTimestampSec() < maturity, "the maturity has already expired");
     }
 
-    function _isBondWorthless(LineSegment[] memory polyline)
-        internal
-        pure
-        returns (bool)
-    {
+    function _isBondWorthless(LineSegment[] memory polyline) internal pure returns (bool) {
         for (uint256 i = 0; i < polyline.length; i++) {
             LineSegment memory segment = polyline[i];
             if (segment.right.y != 0) {
@@ -739,11 +634,7 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
      * @dev Return the strike price only when the form of polyline matches to the definition of SBT.
      * Check if the form is SBT even when the polyline is in a verbose style.
      */
-    function _getSbtStrikePrice(LineSegment[] memory polyline)
-        internal
-        pure
-        returns (uint64)
-    {
+    function _getSbtStrikePrice(LineSegment[] memory polyline) internal pure returns (uint64) {
         if (polyline.length != 2) {
             return 0;
         }
@@ -769,11 +660,7 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
      * the minimum collateral price (USD) that LBT is not worthless.
      * Check if the form is LBT even when the polyline is in a verbose style.
      */
-    function _getLbtStrikePrice(LineSegment[] memory polyline)
-        internal
-        pure
-        returns (uint64)
-    {
+    function _getLbtStrikePrice(LineSegment[] memory polyline) internal pure returns (uint64) {
         if (polyline.length != 2) {
             return 0;
         }
@@ -826,7 +713,5 @@ abstract contract BondMaker is UseSafeMath, BondMakerInterface, Time, Polyline {
 
     function _getCollateralDecimals() internal view virtual returns (uint8);
 
-    function _sendCollateralTo(address receiver, uint256 amount)
-        internal
-        virtual;
+    function _sendCollateralTo(address receiver, uint256 amount) internal virtual;
 }

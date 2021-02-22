@@ -49,9 +49,7 @@ contract FairSwapPriceOracle is LatestPriceOracleInterface, Time {
     }
 
     function isWorking() public override returns (bool) {
-        return
-            address(baseTokenOracle) != address(0) &&
-            baseTokenOracle.isWorking();
+        return address(baseTokenOracle) != address(0) && baseTokenOracle.isWorking();
     }
 
     function updateBaseTokenOracle(address baseTokenOracleAddress) external {
@@ -71,10 +69,7 @@ contract FairSwapPriceOracle is LatestPriceOracleInterface, Time {
     }
 
     function setLowestPrice(uint256 price) external {
-        require(
-            msg.sender == deployer,
-            "only deployer is allowed to change lowest price"
-        );
+        require(msg.sender == deployer, "only deployer is allowed to change lowest price");
         lowestPrice = price;
     }
 
@@ -84,14 +79,13 @@ contract FairSwapPriceOracle is LatestPriceOracleInterface, Time {
     function latestPrice() external override returns (uint256) {
         require(isWorking(), "the swap pair oracle is not working");
 
-        (, uint256 baseTokenPoolAmount, uint256 quoteTokenPoolAmount, , , , ) =
-            fairSwap.getExchangeData();
+        (, uint256 baseTokenPoolAmount, uint256 quoteTokenPoolAmount, , , , ) = fairSwap
+            .getExchangeData();
 
         uint256 baseTokenPrice = baseTokenOracle.latestPrice();
 
         // quoteTokenPrice = max(baseTokenPrice * baseTokenPoolAmount / quoteTokenPoolAmount, lowestPrice)
-        uint256 quoteTokenPrice =
-            baseTokenPrice.mul(baseTokenPoolAmount).div(quoteTokenPoolAmount);
+        uint256 quoteTokenPrice = baseTokenPrice.mul(baseTokenPoolAmount).div(quoteTokenPoolAmount);
         if (quoteTokenPrice < lowestPrice) {
             quoteTokenPrice = lowestPrice;
         }

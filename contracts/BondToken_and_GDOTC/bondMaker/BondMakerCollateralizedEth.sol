@@ -30,11 +30,7 @@ contract BondMakerCollateralizedEth is BondMaker, TransferETH {
         BOND_TOKEN_FACTORY = bondTokenFactoryAddress;
     }
 
-    function issueNewBonds(uint256 bondGroupID)
-        public
-        payable
-        returns (uint256 bondAmount)
-    {
+    function issueNewBonds(uint256 bondGroupID) public payable returns (uint256 bondAmount) {
         return _issueNewBonds(bondGroupID, msg.value);
     }
 
@@ -43,15 +39,13 @@ contract BondMakerCollateralizedEth is BondMaker, TransferETH {
         override
         returns (BondTokenInterface)
     {
-        (string memory symbol, string memory name) =
-            _getBondTokenName(maturity, fnMap);
-        address bondAddress =
-            BOND_TOKEN_FACTORY.createBondToken(
-                ETH,
-                name,
-                symbol,
-                DECIMALS_OF_BOND
-            );
+        (string memory symbol, string memory name) = _getBondTokenName(maturity, fnMap);
+        address bondAddress = BOND_TOKEN_FACTORY.createBondToken(
+            ETH,
+            name,
+            symbol,
+            DECIMALS_OF_BOND
+        );
         return BondTokenInterface(bondAddress);
     }
 
@@ -65,35 +59,15 @@ contract BondMakerCollateralizedEth is BondMaker, TransferETH {
         LineSegment[] memory segments = _registeredFnMap[fnMapID];
         uint64 sbtStrikePrice = _getSbtStrikePrice(segments);
         uint64 lbtStrikePrice = _getLbtStrikePrice(segments);
-        uint64 sbtStrikePriceE0 =
-            sbtStrikePrice / (uint64(10)**DECIMALS_OF_ORACLE_PRICE);
-        uint64 lbtStrikePriceE0 =
-            lbtStrikePrice / (uint64(10)**DECIMALS_OF_ORACLE_PRICE);
+        uint64 sbtStrikePriceE0 = sbtStrikePrice / (uint64(10)**DECIMALS_OF_ORACLE_PRICE);
+        uint64 lbtStrikePriceE0 = lbtStrikePrice / (uint64(10)**DECIMALS_OF_ORACLE_PRICE);
 
         if (sbtStrikePrice != 0) {
-            return
-                BOND_TOKEN_NAMER.genBondTokenName(
-                    "SBT",
-                    "SBT",
-                    maturity,
-                    sbtStrikePriceE0
-                );
+            return BOND_TOKEN_NAMER.genBondTokenName("SBT", "SBT", maturity, sbtStrikePriceE0);
         } else if (lbtStrikePrice != 0) {
-            return
-                BOND_TOKEN_NAMER.genBondTokenName(
-                    "LBT",
-                    "LBT",
-                    maturity,
-                    lbtStrikePriceE0
-                );
+            return BOND_TOKEN_NAMER.genBondTokenName("LBT", "LBT", maturity, lbtStrikePriceE0);
         } else {
-            return
-                BOND_TOKEN_NAMER.genBondTokenName(
-                    "IMT",
-                    "Immortal Option",
-                    maturity,
-                    0
-                );
+            return BOND_TOKEN_NAMER.genBondTokenName("IMT", "Immortal Option", maturity, 0);
         }
     }
 
@@ -105,10 +79,7 @@ contract BondMakerCollateralizedEth is BondMaker, TransferETH {
         return 18;
     }
 
-    function _sendCollateralTo(address receiver, uint256 amount)
-        internal
-        override
-    {
+    function _sendCollateralTo(address receiver, uint256 amount) internal override {
         _transferETH(payable(receiver), amount);
     }
 }

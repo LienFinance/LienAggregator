@@ -20,15 +20,9 @@ abstract contract BondVsEthExchange is BondExchange, TransferETH {
 
     mapping(address => uint256) internal _depositedEth;
 
-    event LogCreateEthToBondPool(
-        bytes32 indexed poolID,
-        address indexed seller
-    );
+    event LogCreateEthToBondPool(bytes32 indexed poolID, address indexed seller);
 
-    event LogCreateBondToEthPool(
-        bytes32 indexed poolID,
-        address indexed seller
-    );
+    event LogCreateBondToEthPool(bytes32 indexed poolID, address indexed seller);
 
     event LogUpdateVsEthPool(
         bytes32 indexed poolID,
@@ -61,10 +55,7 @@ abstract contract BondVsEthExchange is BondExchange, TransferETH {
      * @dev Reverts when the pool ID does not exist.
      */
     modifier isExsistentVsEthPool(bytes32 poolID) {
-        require(
-            _vsEthPool[poolID].seller != address(0),
-            "the exchange pair does not exist"
-        );
+        require(_vsEthPool[poolID].seller != address(0), "the exchange pair does not exist");
         _;
     }
 
@@ -115,10 +106,7 @@ abstract contract BondVsEthExchange is BondExchange, TransferETH {
     /**
      * @notice Returns the exchange rate including spread.
      */
-    function calcRateBondToEth(bytes32 bondID, bytes32 poolID)
-        external
-        returns (uint256 rateE8)
-    {
+    function calcRateBondToEth(bytes32 bondID, bytes32 poolID) external returns (uint256 rateE8) {
         (rateE8, , , ) = _calcRateBondToEth(bondID, poolID);
     }
 
@@ -161,27 +149,16 @@ abstract contract BondVsEthExchange is BondExchange, TransferETH {
         BondPricerInterface bondPricerAddress,
         int16 feeBaseE4
     ) external {
-        require(
-            _vsEthPool[poolID].seller == msg.sender,
-            "not the owner of the pool ID"
-        );
+        require(_vsEthPool[poolID].seller == msg.sender, "not the owner of the pool ID");
 
-        _updateVsEthPool(
-            poolID,
-            ethOracleAddress,
-            bondPricerAddress,
-            feeBaseE4
-        );
+        _updateVsEthPool(poolID, ethOracleAddress, bondPricerAddress, feeBaseE4);
     }
 
     /**
      * @notice Delete the pool settings.
      */
     function deleteVsEthPool(bytes32 poolID) external {
-        require(
-            _vsEthPool[poolID].seller == msg.sender,
-            "not the owner of the pool ID"
-        );
+        require(_vsEthPool[poolID].seller == msg.sender, "not the owner of the pool ID");
 
         _deleteVsEthPool(poolID);
     }
@@ -221,11 +198,7 @@ abstract contract BondVsEthExchange is BondExchange, TransferETH {
     /**
      * @notice Returns deposited ETH amount.
      */
-    function ethAllowance(address owner)
-        external
-        view
-        returns (uint256 amount)
-    {
+    function ethAllowance(address owner) external view returns (uint256 amount) {
         amount = _depositedEth[owner];
     }
 
@@ -253,43 +226,20 @@ abstract contract BondVsEthExchange is BondExchange, TransferETH {
 
         uint256 volumeE8;
         {
-            (uint256 rateE8, , uint256 swapPairPriceE8, ) =
-                _calcRateBondToEth(bondID, poolID);
-            require(
-                rateE8 > MIN_EXCHANGE_RATE_E8,
-                "exchange rate is too small"
-            );
-            require(
-                rateE8 < MAX_EXCHANGE_RATE_E8,
-                "exchange rate is too large"
-            );
+            (uint256 rateE8, , uint256 swapPairPriceE8, ) = _calcRateBondToEth(bondID, poolID);
+            require(rateE8 > MIN_EXCHANGE_RATE_E8, "exchange rate is too small");
+            require(rateE8 < MAX_EXCHANGE_RATE_E8, "exchange rate is too large");
             bondAmount =
-                _applyDecimalGap(
-                    swapPairAmount,
-                    DECIMALS_OF_ETH,
-                    DECIMALS_OF_BOND + 8
-                ) /
+                _applyDecimalGap(swapPairAmount, DECIMALS_OF_ETH, DECIMALS_OF_BOND + 8) /
                 rateE8;
             require(bondAmount != 0, "must transfer non-zero bond amount");
-            volumeE8 = swapPairPriceE8.mul(swapPairAmount).div(
-                10**uint256(DECIMALS_OF_ETH)
-            );
+            volumeE8 = swapPairPriceE8.mul(swapPairAmount).div(10**uint256(DECIMALS_OF_ETH));
         }
 
-        require(
-            bondToken.transferFrom(seller, buyer, bondAmount),
-            "fail to transfer bonds"
-        );
+        require(bondToken.transferFrom(seller, buyer, bondAmount), "fail to transfer bonds");
         _transferEthFrom(buyer, seller, swapPairAmount);
 
-        emit LogExchangeEthToBond(
-            buyer,
-            bondID,
-            poolID,
-            bondAmount,
-            swapPairAmount,
-            volumeE8
-        );
+        emit LogExchangeEthToBond(buyer, bondID, poolID, bondAmount, swapPairAmount, volumeE8);
     }
 
     /**
@@ -316,41 +266,22 @@ abstract contract BondVsEthExchange is BondExchange, TransferETH {
 
         uint256 volumeE8;
         {
-            (uint256 rateE8, uint256 bondPriceE8, , ) =
-                _calcRateBondToEth(bondID, poolID);
-            require(
-                rateE8 > MIN_EXCHANGE_RATE_E8,
-                "exchange rate is too small"
-            );
-            require(
-                rateE8 < MAX_EXCHANGE_RATE_E8,
-                "exchange rate is too large"
-            );
+            (uint256 rateE8, uint256 bondPriceE8, , ) = _calcRateBondToEth(bondID, poolID);
+            require(rateE8 > MIN_EXCHANGE_RATE_E8, "exchange rate is too small");
+            require(rateE8 < MAX_EXCHANGE_RATE_E8, "exchange rate is too large");
             swapPairAmount = _applyDecimalGap(
                 bondAmount.mul(rateE8),
                 DECIMALS_OF_BOND + 8,
                 DECIMALS_OF_ETH
             );
             require(swapPairAmount != 0, "must transfer non-zero token amount");
-            volumeE8 = bondPriceE8.mul(bondAmount).div(
-                10**uint256(DECIMALS_OF_BOND)
-            );
+            volumeE8 = bondPriceE8.mul(bondAmount).div(10**uint256(DECIMALS_OF_BOND));
         }
 
-        require(
-            bondToken.transferFrom(buyer, seller, bondAmount),
-            "fail to transfer bonds"
-        );
+        require(bondToken.transferFrom(buyer, seller, bondAmount), "fail to transfer bonds");
         _transferEthFrom(seller, buyer, swapPairAmount);
 
-        emit LogExchangeBondToEth(
-            buyer,
-            bondID,
-            poolID,
-            bondAmount,
-            swapPairAmount,
-            volumeE8
-        );
+        emit LogExchangeBondToEth(buyer, bondID, poolID, bondAmount, swapPairAmount, volumeE8);
     }
 
     function _calcRateBondToEth(bytes32 bondID, bytes32 poolID)
@@ -370,16 +301,9 @@ abstract contract BondVsEthExchange is BondExchange, TransferETH {
             bool isBondSale
         ) = _getVsEthPool(poolID);
         swapPairPriceE8 = _getLatestPrice(ethOracle);
-        (bondPriceE8, spreadE8) = _calcBondPriceAndSpread(
-            bondPricer,
-            bondID,
-            feeBaseE4
-        );
+        (bondPriceE8, spreadE8) = _calcBondPriceAndSpread(bondPricer, bondID, feeBaseE4);
         bondPriceE8 = _calcUsdPrice(bondPriceE8);
-        rateE8 = bondPriceE8.mul(10**8).div(
-            swapPairPriceE8,
-            "ERC20 oracle price must be non-zero"
-        );
+        rateE8 = bondPriceE8.mul(10**8).div(swapPairPriceE8, "ERC20 oracle price must be non-zero");
 
         // `spreadE8` is less than 0.15 * 10**8.
         if (isBondSale) {
@@ -394,15 +318,7 @@ abstract contract BondVsEthExchange is BondExchange, TransferETH {
         view
         returns (bytes32 poolID)
     {
-        return
-            keccak256(
-                abi.encode(
-                    "Bond vs ETH exchange",
-                    address(this),
-                    seller,
-                    isBondSale
-                )
-            );
+        return keccak256(abi.encode("Bond vs ETH exchange", address(this), seller, isBondSale));
     }
 
     function _setVsEthPool(
@@ -414,14 +330,8 @@ abstract contract BondVsEthExchange is BondExchange, TransferETH {
         bool isBondSale
     ) internal {
         require(seller != address(0), "the pool ID already exists");
-        require(
-            address(ethOracle) != address(0),
-            "ethOracle should be non-zero address"
-        );
-        require(
-            address(bondPricer) != address(0),
-            "bondPricer should be non-zero address"
-        );
+        require(address(ethOracle) != address(0), "ethOracle should be non-zero address");
+        require(address(bondPricer) != address(0), "bondPricer should be non-zero address");
         _vsEthPool[poolID] = VsEthPool({
             seller: seller,
             ethOracle: ethOracle,
@@ -439,10 +349,7 @@ abstract contract BondVsEthExchange is BondExchange, TransferETH {
         bool isBondSale
     ) internal returns (bytes32 poolID) {
         poolID = _generateVsEthPoolID(seller, isBondSale);
-        require(
-            _vsEthPool[poolID].seller == address(0),
-            "the pool ID already exists"
-        );
+        require(_vsEthPool[poolID].seller == address(0), "the pool ID already exists");
 
         {
             uint256 price = ethOracle.latestPrice();
@@ -452,14 +359,7 @@ abstract contract BondVsEthExchange is BondExchange, TransferETH {
             );
         }
 
-        _setVsEthPool(
-            poolID,
-            seller,
-            ethOracle,
-            bondPricer,
-            feeBaseE4,
-            isBondSale
-        );
+        _setVsEthPool(poolID, seller, ethOracle, bondPricer, feeBaseE4, isBondSale);
 
         if (isBondSale) {
             emit LogCreateEthToBondPool(poolID, seller);
@@ -467,12 +367,7 @@ abstract contract BondVsEthExchange is BondExchange, TransferETH {
             emit LogCreateBondToEthPool(poolID, seller);
         }
 
-        emit LogUpdateVsEthPool(
-            poolID,
-            address(ethOracle),
-            address(bondPricer),
-            feeBaseE4
-        );
+        emit LogUpdateVsEthPool(poolID, address(ethOracle), address(bondPricer), feeBaseE4);
     }
 
     function _updateVsEthPool(
@@ -482,27 +377,12 @@ abstract contract BondVsEthExchange is BondExchange, TransferETH {
         int16 feeBaseE4
     ) internal isExsistentVsEthPool(poolID) {
         (address seller, , , , bool isBondSale) = _getVsEthPool(poolID);
-        _setVsEthPool(
-            poolID,
-            seller,
-            ethOracle,
-            bondPricer,
-            feeBaseE4,
-            isBondSale
-        );
+        _setVsEthPool(poolID, seller, ethOracle, bondPricer, feeBaseE4, isBondSale);
 
-        emit LogUpdateVsEthPool(
-            poolID,
-            address(ethOracle),
-            address(bondPricer),
-            feeBaseE4
-        );
+        emit LogUpdateVsEthPool(poolID, address(ethOracle), address(bondPricer), feeBaseE4);
     }
 
-    function _deleteVsEthPool(bytes32 poolID)
-        internal
-        isExsistentVsEthPool(poolID)
-    {
+    function _deleteVsEthPool(bytes32 poolID) internal isExsistentVsEthPool(poolID) {
         delete _vsEthPool[poolID];
 
         emit LogDeleteVsEthPool(poolID);

@@ -22,20 +22,9 @@ contract BondMakerCollateralizedErc20 is BondMaker {
         uint256 maturityScale,
         uint8 decimalsOfBond,
         uint8 decimalsOfOraclePrice
-    )
-        BondMaker(
-            oracleAddress,
-            feeTaker,
-            maturityScale,
-            decimalsOfBond,
-            decimalsOfOraclePrice
-        )
-    {
+    ) BondMaker(oracleAddress, feeTaker, maturityScale, decimalsOfBond, decimalsOfOraclePrice) {
         uint8 decimalsOfCollateral = collateralizedTokenAddress.decimals();
-        require(
-            decimalsOfCollateral < 19,
-            "the decimals of collateral must be less than 19"
-        );
+        require(decimalsOfCollateral < 19, "the decimals of collateral must be less than 19");
         COLLATERALIZED_TOKEN = collateralizedTokenAddress;
         require(
             address(bondTokenNamerAddress) != address(0),
@@ -59,8 +48,7 @@ contract BondMakerCollateralizedErc20 is BondMaker {
         public
         returns (uint256 bondAmount)
     {
-        uint256 allowance =
-            COLLATERALIZED_TOKEN.allowance(msg.sender, address(this));
+        uint256 allowance = COLLATERALIZED_TOKEN.allowance(msg.sender, address(this));
         require(amount <= allowance, "insufficient allowance");
         uint256 receivedAmount = _receiveCollateralFrom(msg.sender, amount);
         return _issueNewBonds(bondGroupID, receivedAmount);
@@ -71,15 +59,13 @@ contract BondMakerCollateralizedErc20 is BondMaker {
         override
         returns (BondTokenInterface)
     {
-        (string memory symbol, string memory name) =
-            _getBondTokenName(maturity, fnMap);
-        address bondAddress =
-            BOND_TOKEN_FACTORY.createBondToken(
-                address(COLLATERALIZED_TOKEN),
-                name,
-                symbol,
-                DECIMALS_OF_BOND
-            );
+        (string memory symbol, string memory name) = _getBondTokenName(maturity, fnMap);
+        address bondAddress = BOND_TOKEN_FACTORY.createBondToken(
+            address(COLLATERALIZED_TOKEN),
+            name,
+            symbol,
+            DECIMALS_OF_BOND
+        );
         return BondTokenInterface(bondAddress);
     }
 
@@ -93,35 +79,15 @@ contract BondMakerCollateralizedErc20 is BondMaker {
         LineSegment[] memory segments = _registeredFnMap[fnMapID];
         uint64 sbtStrikePrice = _getSbtStrikePrice(segments);
         uint64 lbtStrikePrice = _getLbtStrikePrice(segments);
-        uint64 sbtStrikePriceE0 =
-            sbtStrikePrice / (uint64(10)**DECIMALS_OF_ORACLE_PRICE);
-        uint64 lbtStrikePriceE0 =
-            lbtStrikePrice / (uint64(10)**DECIMALS_OF_ORACLE_PRICE);
+        uint64 sbtStrikePriceE0 = sbtStrikePrice / (uint64(10)**DECIMALS_OF_ORACLE_PRICE);
+        uint64 lbtStrikePriceE0 = lbtStrikePrice / (uint64(10)**DECIMALS_OF_ORACLE_PRICE);
 
         if (sbtStrikePrice != 0) {
-            return
-                BOND_TOKEN_NAMER.genBondTokenName(
-                    "SBT",
-                    "SBT",
-                    maturity,
-                    sbtStrikePriceE0
-                );
+            return BOND_TOKEN_NAMER.genBondTokenName("SBT", "SBT", maturity, sbtStrikePriceE0);
         } else if (lbtStrikePrice != 0) {
-            return
-                BOND_TOKEN_NAMER.genBondTokenName(
-                    "LBT",
-                    "LBT",
-                    maturity,
-                    lbtStrikePriceE0
-                );
+            return BOND_TOKEN_NAMER.genBondTokenName("LBT", "LBT", maturity, lbtStrikePriceE0);
         } else {
-            return
-                BOND_TOKEN_NAMER.genBondTokenName(
-                    "IMT",
-                    "Immortal Option",
-                    maturity,
-                    0
-                );
+            return BOND_TOKEN_NAMER.genBondTokenName("IMT", "Immortal Option", maturity, 0);
         }
     }
 
@@ -133,10 +99,7 @@ contract BondMakerCollateralizedErc20 is BondMaker {
         return COLLATERALIZED_TOKEN.decimals();
     }
 
-    function _sendCollateralTo(address receiver, uint256 amount)
-        internal
-        override
-    {
+    function _sendCollateralTo(address receiver, uint256 amount) internal override {
         COLLATERALIZED_TOKEN.safeTransfer(receiver, amount);
     }
 

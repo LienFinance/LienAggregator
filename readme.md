@@ -132,3 +132,15 @@ or
 - contracts/SimpleAggregator/SimpleAggregatorCollateralizedEth.sol
 - contracts/Strategy/StrategyForSimpleAggregator.sol
 - contracts/Strategy/StrategyForSimpleAggregatorETH.sol
+
+## About Corrections from the first audit report
+The corrected points are marked with ```AUDIT-FIX``` comment.
+### Unchanged Points
+- BRR-03: These points are checked in bondmaker contract.
+- SAR-02: In our local environment, import path starting with `@openzeppelin` does not work.
+- SAR-03: `STRATEGY` and `DOTC` are used in the constructor
+- SAR-28: The modification requires a lot of efforts comparing to the benefit from gas optimization
+- SAR-29: Same reason as SAR-28
+- SFS-01: Same reason as SAR-02
+- SFS-04: Same reason as SAR-28
+- SFS-08: Current fee base is under 1000

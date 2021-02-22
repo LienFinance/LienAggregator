@@ -50,11 +50,7 @@ contract TestExchange is TransferETH {
         AddressToSpread[AggregatorAddress] = spread;
     }
 
-    function getSpread(address AggregatorAddress)
-        public
-        view
-        returns (int16 spread)
-    {
+    function getSpread(address AggregatorAddress) public view returns (int16 spread) {
         return AddressToSpread[AggregatorAddress];
     }
 
@@ -77,18 +73,11 @@ contract TestExchange is TransferETH {
         BondPricerInterface bondPricerAddress,
         int16 feeBaseE4
     ) external returns (bytes32 poolID) {
-        poolID = generateVsBondPoolID(
-            msg.sender,
-            address(bondMakerForUserAddress)
-        );
+        poolID = generateVsBondPoolID(msg.sender, address(bondMakerForUserAddress));
 
-        bondPools[poolID].bondMakerForUserAddress = address(
-            bondMakerForUserAddress
-        );
+        bondPools[poolID].bondMakerForUserAddress = address(bondMakerForUserAddress);
         bondPools[poolID].bondPricerAddress = address(bondPricerAddress);
-        bondPools[poolID].bondPricerForUserAddress = address(
-            bondPricerForUserAddress
-        );
+        bondPools[poolID].bondPricerForUserAddress = address(bondPricerForUserAddress);
         bondPools[poolID].feeBaseE4 = feeBaseE4;
     }
 
@@ -99,11 +88,7 @@ contract TestExchange is TransferETH {
         int16 feeBaseE4,
         bool isBondSale
     ) external returns (bytes32 poolID) {
-        poolID = generateVsErc20PoolID(
-            msg.sender,
-            address(swapPairAddress),
-            isBondSale
-        );
+        poolID = generateVsErc20PoolID(msg.sender, address(swapPairAddress), isBondSale);
         erc20Pools[poolID].isBondSale = isBondSale;
         erc20Pools[poolID].bondPricerAddress = address(bondPricerAddress);
         erc20Pools[poolID].feeBaseE4 = feeBaseE4;
@@ -132,9 +117,7 @@ contract TestExchange is TransferETH {
         int16 feeBaseE4
     ) external {
         bondPools[poolID].bondPricerAddress = address(bondPricerAddress);
-        bondPools[poolID].bondPricerForUserAddress = address(
-            bondPricerForUserAddress
-        );
+        bondPools[poolID].bondPricerForUserAddress = address(bondPricerForUserAddress);
         bondPools[poolID].feeBaseE4 = feeBaseE4;
     }
 

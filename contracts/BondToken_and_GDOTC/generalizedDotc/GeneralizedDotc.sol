@@ -5,11 +5,7 @@ import "./BondVsErc20Exchange.sol";
 import "./BondVsEthExchange.sol";
 import "./BondVsBondExchange.sol";
 
-contract GeneralizedDotc is
-    BondVsBondExchange,
-    BondVsErc20Exchange,
-    BondVsEthExchange
-{
+contract GeneralizedDotc is BondVsBondExchange, BondVsErc20Exchange, BondVsEthExchange {
     constructor(
         BondMakerInterface bondMakerAddress,
         VolatilityOracleInterface volatilityOracleAddress,

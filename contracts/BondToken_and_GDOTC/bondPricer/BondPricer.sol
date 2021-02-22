@@ -73,18 +73,9 @@ contract BondPricer is CustomGeneralizedPricing, Time {
         int256 ethVolatilityE8,
         int256 untilMaturity
     ) internal pure returns (bool) {
-        require(
-            etherPriceE8 < 100000 * 10**8,
-            "ETH price should be between $0 and $100000"
-        );
-        require(
-            ethVolatilityE8 < 10 * 10**8,
-            "ETH volatility should be between 0% and 1000%"
-        );
-        require(
-            untilMaturity <= 12 weeks,
-            "the bond maturity must be less than 12 weeks"
-        );
+        require(etherPriceE8 < 100000 * 10**8, "ETH price should be between $0 and $100000");
+        require(ethVolatilityE8 < 10 * 10**8, "ETH volatility should be between 0% and 1000%");
+        require(untilMaturity <= 12 weeks, "the bond maturity must be less than 12 weeks");
         return true;
     }
 }

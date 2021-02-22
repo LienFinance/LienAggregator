@@ -3,9 +3,7 @@ pragma solidity 0.7.1;
 pragma experimental ABIEncoderV2;
 import "./SimpleAggregatorCollateralizedERC20.sol";
 
-contract testSimpleAggregatorCollateralizedERC20 is
-    SimpleAggregatorCollateralizedERC20
-{
+contract testSimpleAggregatorCollateralizedERC20 is SimpleAggregatorCollateralizedERC20 {
     constructor(
         LatestPriceOracleInterface _oracle,
         BondPricerWithAcceptableMaturity _pricer,
@@ -35,17 +33,10 @@ contract testSimpleAggregatorCollateralizedERC20 is
     {}
 
     function changeIsLiquidated() public {
-        liquidationData[currentTerm].isLiquidated = !liquidationData[
-            currentTerm
-        ]
-            .isLiquidated;
+        liquidationData[currentTerm].isLiquidated = !liquidationData[currentTerm].isLiquidated;
     }
 
-    function applyDecimalGap(uint256 amount, bool isDiv)
-        external
-        view
-        returns (uint256)
-    {
+    function applyDecimalGap(uint256 amount, bool isDiv) external view returns (uint256) {
         _applyDecimalGap(amount, isDiv);
     }
 
@@ -66,9 +57,7 @@ contract testSimpleAggregatorCollateralizedERC20 is
         uint256 _totalShare,
         uint256
     ) public {
-        shareData[index + 1].totalCollateralPerToken = uint128(
-            _collateralPerToken
-        );
+        shareData[index + 1].totalCollateralPerToken = uint128(_collateralPerToken);
         shareData[index + 1].totalShare = uint128(_totalShare);
     }
 
@@ -82,13 +71,12 @@ contract testSimpleAggregatorCollateralizedERC20 is
         uint64 maturity,
         uint64 priviousMaturity
     ) external {
-        uint32 returnValue =
-            _liquidateBondGroup(
-                bondGroupId,
-                liquidateBondNumber,
-                maturity,
-                priviousMaturity
-            );
+        uint32 returnValue = _liquidateBondGroup(
+            bondGroupId,
+            liquidateBondNumber,
+            maturity,
+            priviousMaturity
+        );
         emit Number(uint256(returnValue));
     }
 
@@ -103,17 +91,11 @@ contract testSimpleAggregatorCollateralizedERC20 is
         );
     }
 
-    function addBondGroup(uint256 bondGroupId, uint256 callStrikePriceInEthUSD)
-        external
-    {
+    function addBondGroup(uint256 bondGroupId, uint256 callStrikePriceInEthUSD) external {
         _addBondGroup(bondGroupId, callStrikePriceInEthUSD);
     }
 
-    function getSuitableBondGroup(uint256 currentPriceE8)
-        external
-        view
-        returns (uint256)
-    {
+    function getSuitableBondGroup(uint256 currentPriceE8) external view returns (uint256) {
         return _getSuitableBondGroup(currentPriceE8);
     }
 
@@ -121,10 +103,7 @@ contract testSimpleAggregatorCollateralizedERC20 is
         _updatePriceUnit(currentPriceE8);
     }
 
-    function addSuitableBondGroup(uint256 currentPriceE8)
-        external
-        returns (uint256)
-    {
+    function addSuitableBondGroup(uint256 currentPriceE8) external returns (uint256) {
         return _addSuitableBondGroup(currentPriceE8);
     }
 }

@@ -69,14 +69,10 @@ abstract contract ERC20Vestable is ERC20, Time {
      * @param endTime Time at which all the tokens of the grant will be vested.
      * @return id of the grant.
      */
-    function createGrant(address beneficiary, uint256 endTime)
-        public
-        returns (uint256)
-    {
+    function createGrant(address beneficiary, uint256 endTime) public returns (uint256) {
         uint256 blockTime = _getBlockTimestampSec();
         require(endTime > blockTime, "endTime is before now");
-        Grant memory g =
-            Grant(0, 0, blockTime.toUint128(), endTime.toUint128());
+        Grant memory g = Grant(0, 0, blockTime.toUint128(), endTime.toUint128());
         address creator = msg.sender;
         grants[beneficiary].push(g);
         uint256 id = grants[beneficiary].length;
@@ -183,20 +179,13 @@ abstract contract ERC20Vestable is ERC20, Time {
         delete grants[beneficiary][id - 1];
     }
 
-    function _getGrant(address beneficiary, uint256 id)
-        private
-        view
-        returns (Grant storage)
-    {
+    function _getGrant(address beneficiary, uint256 id) private view returns (Grant storage) {
         require(id != 0, "0 is invalid as id");
         id = id - 1;
         require(id < grants[beneficiary].length, "grant does not exist");
         Grant storage g = grants[beneficiary][id];
         // check if the grant is deleted
-        require(
-            g.endTime != 0,
-            "cannot get grant which is already claimed entirely"
-        );
+        require(g.endTime != 0, "cannot get grant which is already claimed entirely");
         return g;
     }
 

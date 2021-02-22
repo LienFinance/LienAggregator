@@ -11,10 +11,7 @@ interface BondRegistratorInterface {
         uint64 y2;
     }
 
-    function getFnMap(Points[] memory points)
-        external
-        pure
-        returns (bytes memory fnMap);
+    function getFnMap(Points[] memory points) external pure returns (bytes memory fnMap);
 
     function registerSBT(
         BondMakerInterface bondMaker,

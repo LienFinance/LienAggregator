@@ -54,10 +54,7 @@ abstract contract BondToken is Ownable, BondTokenInterface, ERC20 {
         _approve(
             sender,
             msg.sender,
-            allowance(sender, msg.sender).sub(
-                amount,
-                "ERC20: transfer amount exceeds allowance"
-            )
+            allowance(sender, msg.sender).sub(amount, "ERC20: transfer amount exceeds allowance")
         );
         return true;
     }
@@ -80,12 +77,7 @@ abstract contract BondToken is Ownable, BondTokenInterface, ERC20 {
         emit LogExpire(rateNumerator, rateDenominator, isFirstTime);
     }
 
-    function simpleBurn(address from, uint256 amount)
-        public
-        override
-        onlyOwner
-        returns (bool)
-    {
+    function simpleBurn(address from, uint256 amount) public override onlyOwner returns (bool) {
         if (amount > balanceOf(from)) {
             return false;
         }
@@ -103,10 +95,9 @@ abstract contract BondToken is Ownable, BondTokenInterface, ERC20 {
 
         if (_rate.numerator != 0) {
             uint8 decimalsOfCollateral = _getCollateralDecimals();
-            uint256 withdrawAmount =
-                _applyDecimalGap(amount, decimals(), decimalsOfCollateral)
-                    .mul(_rate.numerator)
-                    .div(_rate.denominator);
+            uint256 withdrawAmount = _applyDecimalGap(amount, decimals(), decimalsOfCollateral)
+                .mul(_rate.numerator)
+                .div(_rate.denominator);
 
             _sendCollateralTo(msg.sender, withdrawAmount);
         }
@@ -172,7 +163,5 @@ abstract contract BondToken is Ownable, BondTokenInterface, ERC20 {
 
     function _getCollateralDecimals() internal view virtual returns (uint8);
 
-    function _sendCollateralTo(address receiver, uint256 amount)
-        internal
-        virtual;
+    function _sendCollateralTo(address receiver, uint256 amount) internal virtual;
 }

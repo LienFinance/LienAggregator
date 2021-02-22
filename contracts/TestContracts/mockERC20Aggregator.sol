@@ -23,11 +23,7 @@ contract mockERC20Aggregator {
 
     function addLiquidity(uint256 issueAmount) external {
         require(
-            IERC20(collateralAddress).transferFrom(
-                msg.sender,
-                address(this),
-                issueAmount
-            ),
+            IERC20(collateralAddress).transferFrom(msg.sender, address(this), issueAmount),
             "Test Aggregator: Token transferFrom"
         );
         receiveAmount = issueAmount;

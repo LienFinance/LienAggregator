@@ -29,19 +29,11 @@ contract PriceInverseOracle is OracleInterface {
         return BASE_ORACLE.latestTimestamp();
     }
 
-    function getPrice(uint256 id)
-        public
-        override
-        returns (uint256 rateETH2USD)
-    {
+    function getPrice(uint256 id) public override returns (uint256 rateETH2USD) {
         return _calcPrice(BASE_ORACLE.getPrice(id));
     }
 
-    function getTimestamp(uint256 id)
-        public
-        override
-        returns (uint256 timestamp)
-    {
+    function getTimestamp(uint256 id) public override returns (uint256 timestamp) {
         return BASE_ORACLE.getTimestamp(id);
     }
 
@@ -49,12 +41,7 @@ contract PriceInverseOracle is OracleInterface {
         return _calcVolatility(BASE_ORACLE.getVolatility());
     }
 
-    function lastCalculatedVolatility()
-        external
-        view
-        override
-        returns (uint256 volatility)
-    {
+    function lastCalculatedVolatility() external view override returns (uint256 volatility) {
         return _calcVolatility(BASE_ORACLE.lastCalculatedVolatility());
     }
 
@@ -66,11 +53,7 @@ contract PriceInverseOracle is OracleInterface {
         return _calcInverse(basePriceE8);
     }
 
-    function _calcVolatility(uint256 baseVolatilityE8)
-        internal
-        pure
-        returns (uint256)
-    {
+    function _calcVolatility(uint256 baseVolatilityE8) internal pure returns (uint256) {
         return baseVolatilityE8;
     }
 

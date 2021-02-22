@@ -61,10 +61,8 @@ contract Polyline {
         require(numOfSegment != 0, "polyline must not be empty array");
 
         LineSegment memory leftSegment = polyline[0]; // mutable
-        int256 gradientNumerator =
-            int256(leftSegment.right.y) - int256(leftSegment.left.y); // mutable
-        int256 gradientDenominator =
-            int256(leftSegment.right.x) - int256(leftSegment.left.x); // mutable
+        int256 gradientNumerator = int256(leftSegment.right.y) - int256(leftSegment.left.y); // mutable
+        int256 gradientDenominator = int256(leftSegment.right.x) - int256(leftSegment.left.x); // mutable
 
         // The beginning of the first line segment's domain is 0.
         require(
@@ -101,10 +99,10 @@ contract Polyline {
                 "given polyline is not a continuous function"
             );
 
-            int256 nextGradientNumerator =
-                int256(rightSegment.right.y) - int256(rightSegment.left.y);
-            int256 nextGradientDenominator =
-                int256(rightSegment.right.x) - int256(rightSegment.left.x);
+            int256 nextGradientNumerator = int256(rightSegment.right.y) -
+                int256(rightSegment.left.y);
+            int256 nextGradientDenominator = int256(rightSegment.right.x) -
+                int256(rightSegment.left.x);
             require(
                 nextGradientNumerator * gradientDenominator !=
                     nextGradientDenominator * gradientNumerator,
@@ -129,11 +127,7 @@ contract Polyline {
      * @notice zip a LineSegment structure to uint256
      * @return zip uint256( 0 ... 0 | x1 | y1 | x2 | y2 )
      */
-    function zipLineSegment(LineSegment memory segment)
-        internal
-        pure
-        returns (uint256 zip)
-    {
+    function zipLineSegment(LineSegment memory segment) internal pure returns (uint256 zip) {
         uint256 x1U256 = uint256(segment.left.x) << (64 + 64 + 64); // uint64
         uint256 y1U256 = uint256(segment.left.y) << (64 + 64); // uint64
         uint256 x2U256 = uint256(segment.right.x) << 64; // uint64
@@ -144,30 +138,18 @@ contract Polyline {
     /**
      * @notice unzip uint256 to a LineSegment structure
      */
-    function unzipLineSegment(uint256 zip)
-        internal
-        pure
-        returns (LineSegment memory)
-    {
+    function unzipLineSegment(uint256 zip) internal pure returns (LineSegment memory) {
         uint64 x1 = uint64(zip >> (64 + 64 + 64));
         uint64 y1 = uint64(zip >> (64 + 64));
         uint64 x2 = uint64(zip >> 64);
         uint64 y2 = uint64(zip);
-        return
-            LineSegment({
-                left: Point({x: x1, y: y1}),
-                right: Point({x: x2, y: y2})
-            });
+        return LineSegment({left: Point({x: x1, y: y1}), right: Point({x: x2, y: y2})});
     }
 
     /**
      * @notice unzip the fnMap to uint256[].
      */
-    function decodePolyline(bytes memory fnMap)
-        internal
-        pure
-        returns (uint256[] memory)
-    {
+    function decodePolyline(bytes memory fnMap) internal pure returns (uint256[] memory) {
         return abi.decode(fnMap, (uint256[]));
     }
 }

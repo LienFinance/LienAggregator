@@ -51,9 +51,7 @@ abstract contract BondExchange is Time {
         _assertBondMakerDecimals(bondMakerAddress);
         _bondMakerContract = bondMakerAddress;
         _priceOracleContract = bondMakerAddress.oracleAddress();
-        _volatilityOracleContract = VolatilityOracleInterface(
-            volatilityOracleAddress
-        );
+        _volatilityOracleContract = VolatilityOracleInterface(volatilityOracleAddress);
         _volumeCalculator = volumeCalculatorAddress;
         _bondShapeDetector = bondShapeDetector;
     }
@@ -62,11 +60,7 @@ abstract contract BondExchange is Time {
         return _bondMakerContract;
     }
 
-    function volumeCalculatorAddress()
-        external
-        view
-        returns (LatestPriceOracleInterface)
-    {
+    function volumeCalculatorAddress() external view returns (LatestPriceOracleInterface) {
         return _volumeCalculator;
     }
 
@@ -75,10 +69,7 @@ abstract contract BondExchange is Time {
      * If the oracle is not working, `latestPrice` reverts.
      * @return priceE8 (10^-8 USD)
      */
-    function _getLatestPrice(LatestPriceOracleInterface oracle)
-        internal
-        returns (uint256 priceE8)
-    {
+    function _getLatestPrice(LatestPriceOracleInterface oracle) internal returns (uint256 priceE8) {
         return oracle.latestPrice();
     }
 
@@ -86,10 +77,11 @@ abstract contract BondExchange is Time {
      * @dev Get the implied volatility using oracle.
      * @return volatilityE8 (10^-8)
      */
-    function _getVolatility(
-        VolatilityOracleInterface oracle,
-        uint64 untilMaturity
-    ) internal view returns (uint256 volatilityE8) {
+    function _getVolatility(VolatilityOracleInterface oracle, uint64 untilMaturity)
+        internal
+        view
+        returns (uint256 volatilityE8)
+    {
         return oracle.getVolatility(untilMaturity);
     }
 
@@ -107,8 +99,7 @@ abstract contract BondExchange is Time {
         )
     {
         address bondTokenAddress;
-        (bondTokenAddress, maturity, sbtStrikePrice, fnMapID) = bondMaker
-            .getBond(bondID);
+        (bondTokenAddress, maturity, sbtStrikePrice, fnMapID) = bondMaker.getBond(bondID);
 
         // Revert if `bondTokenAddress` is zero.
         bondToken = ERC20(bondTokenAddress);
@@ -142,22 +133,19 @@ abstract contract BondExchange is Time {
         int16 feeBaseE4
     ) internal returns (uint256 bondPriceE8, int256 spreadE8) {
         (, uint256 maturity, , ) = _getBond(_bondMakerContract, bondID);
-        (bool isKnownBondType, BondType bondType, uint256[] memory points) =
-            _bondShapeDetector.getBondTypeByID(
-                _bondMakerContract,
-                bondID,
-                BondType.NONE
-            );
+        (bool isKnownBondType, BondType bondType, uint256[] memory points) = _bondShapeDetector
+            .getBondTypeByID(_bondMakerContract, bondID, BondType.NONE);
         require(isKnownBondType, "cannot calculate the price of this bond");
 
-        uint256 untilMaturity =
-            maturity.sub(
-                _getBlockTimestampSec(),
-                "the bond should not have expired"
-            );
+        uint256 untilMaturity = maturity.sub(
+            _getBlockTimestampSec(),
+            "the bond should not have expired"
+        );
         uint256 oraclePriceE8 = _getLatestPrice(_priceOracleContract);
-        uint256 oracleVolatilityE8 =
-            _getVolatility(_volatilityOracleContract, untilMaturity.toUint64());
+        uint256 oracleVolatilityE8 = _getVolatility(
+            _volatilityOracleContract,
+            untilMaturity.toUint64()
+        );
 
         uint256 leverageE8;
         (bondPriceE8, leverageE8) = bondPricer.calcPriceAndLeverage(
@@ -175,20 +163,14 @@ abstract contract BondExchange is Time {
         uint256 leverageE8,
         int16 feeBaseE4
     ) internal pure returns (int256 spreadE8) {
-        uint256 volE8 =
-            oracleVolatilityE8 < 10**8 ? 10**8 : oracleVolatilityE8 > 2 * 10**8
-                ? 2 * 10**8
-                : oracleVolatilityE8;
+        uint256 volE8 = oracleVolatilityE8 < 10**8 ? 10**8 : oracleVolatilityE8 > 2 * 10**8
+            ? 2 * 10**8
+            : oracleVolatilityE8;
         uint256 volTimesLevE16 = volE8 * leverageE8;
         // assert(volTimesLevE16 < 200 * 10**16);
         spreadE8 =
             (feeBaseE4 *
-                (
-                    feeBaseE4 < 0 || volTimesLevE16 < 10**16
-                        ? 10**16
-                        : volTimesLevE16
-                )
-                    .toInt256()) /
+                (feeBaseE4 < 0 || volTimesLevE16 < 10**16 ? 10**16 : volTimesLevE16).toInt256()) /
             10**12;
         spreadE8 = spreadE8 > MAX_SPREAD_E8 ? MAX_SPREAD_E8 : spreadE8;
     }
@@ -203,10 +185,7 @@ abstract contract BondExchange is Time {
     /**
      * @dev Restirct the bond maker.
      */
-    function _assertBondMakerDecimals(BondMakerInterface bondMaker)
-        internal
-        view
-    {
+    function _assertBondMakerDecimals(BondMakerInterface bondMaker) internal view {
         require(
             bondMaker.decimalsOfOraclePrice() == DECIMALS_OF_ORACLE_PRICE,
             "the decimals of oracle price must be 8"

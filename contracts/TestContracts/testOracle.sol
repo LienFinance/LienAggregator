@@ -29,9 +29,7 @@ contract testOracleForAggregator {
         return Price;
     }
 
-    function changePriceAndVolatility(uint256 newPrice, uint256 newVolatility)
-        public
-    {
+    function changePriceAndVolatility(uint256 newPrice, uint256 newVolatility) public {
         Price = newPrice;
         Volatility = newVolatility;
     }

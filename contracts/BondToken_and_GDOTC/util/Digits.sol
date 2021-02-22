@@ -5,11 +5,7 @@ library Digits {
     /**
      * @notice represent given number to `digits` digits string
      */
-    function toString(uint256 value, uint256 digits)
-        internal
-        pure
-        returns (string memory)
-    {
+    function toString(uint256 value, uint256 digits) internal pure returns (string memory) {
         // solium-disable-previous-line security/no-assign-params
         bytes memory buffer = new bytes(digits);
         while (digits != 0) {

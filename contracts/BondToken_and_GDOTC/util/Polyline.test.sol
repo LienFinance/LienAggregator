@@ -28,12 +28,7 @@ contract TestPolyline is Polyline {
         uint64 y2
     ) public pure returns (bytes32 zip) {
         zip = bytes32(
-            zipLineSegment(
-                LineSegment({
-                    left: Point({x: x1, y: y1}),
-                    right: Point({x: x2, y: y2})
-                })
-            )
+            zipLineSegment(LineSegment({left: Point({x: x1, y: y1}), right: Point({x: x2, y: y2})}))
         );
     }
 }

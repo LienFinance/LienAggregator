@@ -61,10 +61,7 @@ abstract contract BondVsErc20Exchange is BondExchange {
      * @dev Reverts when the pool ID does not exist.
      */
     modifier isExsistentVsErc20Pool(bytes32 poolID) {
-        require(
-            _vsErc20Pool[poolID].seller != address(0),
-            "the exchange pair does not exist"
-        );
+        require(_vsErc20Pool[poolID].seller != address(0), "the exchange pair does not exist");
         _;
     }
 
@@ -85,12 +82,7 @@ abstract contract BondVsErc20Exchange is BondExchange {
         uint256 expectedAmount,
         uint256 range
     ) external returns (uint256 bondAmount) {
-        bondAmount = _exchangeErc20ToBond(
-            msg.sender,
-            bondID,
-            poolID,
-            swapPairAmount
-        );
+        bondAmount = _exchangeErc20ToBond(msg.sender, bondID, poolID, swapPairAmount);
         // assert(bondAmount != 0);
         _assertExpectedPriceRange(bondAmount, expectedAmount, range);
     }
@@ -112,12 +104,7 @@ abstract contract BondVsErc20Exchange is BondExchange {
         uint256 expectedAmount,
         uint256 range
     ) external returns (uint256 swapPairAmount) {
-        swapPairAmount = _exchangeBondToErc20(
-            msg.sender,
-            bondID,
-            poolID,
-            bondAmount
-        );
+        swapPairAmount = _exchangeBondToErc20(msg.sender, bondID, poolID, bondAmount);
         // assert(swapPairAmount != 0);
         _assertExpectedPriceRange(swapPairAmount, expectedAmount, range);
     }
@@ -125,10 +112,7 @@ abstract contract BondVsErc20Exchange is BondExchange {
     /**
      * @notice Returns the exchange rate including spread.
      */
-    function calcRateBondToErc20(bytes32 bondID, bytes32 poolID)
-        external
-        returns (uint256 rateE8)
-    {
+    function calcRateBondToErc20(bytes32 bondID, bytes32 poolID) external returns (uint256 rateE8) {
         (rateE8, , , ) = _calcRateBondToErc20(bondID, poolID);
     }
 
@@ -173,27 +157,16 @@ abstract contract BondVsErc20Exchange is BondExchange {
         BondPricerInterface bondPricerAddress,
         int16 feeBaseE4
     ) external {
-        require(
-            _vsErc20Pool[poolID].seller == msg.sender,
-            "not the owner of the pool ID"
-        );
+        require(_vsErc20Pool[poolID].seller == msg.sender, "not the owner of the pool ID");
 
-        _updateVsErc20Pool(
-            poolID,
-            swapPairOracleAddress,
-            bondPricerAddress,
-            feeBaseE4
-        );
+        _updateVsErc20Pool(poolID, swapPairOracleAddress, bondPricerAddress, feeBaseE4);
     }
 
     /**
      * @notice Delete the pool settings.
      */
     function deleteVsErc20Pool(bytes32 poolID) external {
-        require(
-            _vsErc20Pool[poolID].seller == msg.sender,
-            "not the owner of the pool ID"
-        );
+        require(_vsErc20Pool[poolID].seller == msg.sender, "not the owner of the pool ID");
 
         _deleteVsErc20Pool(poolID);
     }
@@ -232,8 +205,7 @@ abstract contract BondVsErc20Exchange is BondExchange {
         bytes32 poolID,
         uint256 swapPairAmount
     ) internal returns (uint256 bondAmount) {
-        (address seller, ERC20 swapPairToken, , , , bool isBondSale) =
-            _getVsErc20Pool(poolID);
+        (address seller, ERC20 swapPairToken, , , , bool isBondSale) = _getVsErc20Pool(poolID);
         require(isBondSale, "This pool is for buying bond");
 
         (ERC20 bondToken, , , ) = _getBond(_bondMakerContract, bondID);
@@ -241,44 +213,21 @@ abstract contract BondVsErc20Exchange is BondExchange {
 
         uint256 volumeE8;
         {
-            (uint256 rateE8, , uint256 swapPairPriceE8, ) =
-                _calcRateBondToErc20(bondID, poolID);
-            require(
-                rateE8 > MIN_EXCHANGE_RATE_E8,
-                "exchange rate is too small"
-            );
-            require(
-                rateE8 < MAX_EXCHANGE_RATE_E8,
-                "exchange rate is too large"
-            );
+            (uint256 rateE8, , uint256 swapPairPriceE8, ) = _calcRateBondToErc20(bondID, poolID);
+            require(rateE8 > MIN_EXCHANGE_RATE_E8, "exchange rate is too small");
+            require(rateE8 < MAX_EXCHANGE_RATE_E8, "exchange rate is too large");
             uint8 decimalsOfSwapPair = swapPairToken.decimals();
             bondAmount =
-                _applyDecimalGap(
-                    swapPairAmount,
-                    decimalsOfSwapPair,
-                    DECIMALS_OF_BOND + 8
-                ) /
+                _applyDecimalGap(swapPairAmount, decimalsOfSwapPair, DECIMALS_OF_BOND + 8) /
                 rateE8;
             require(bondAmount != 0, "must transfer non-zero bond amount");
-            volumeE8 = swapPairPriceE8.mul(swapPairAmount).div(
-                10**uint256(decimalsOfSwapPair)
-            );
+            volumeE8 = swapPairPriceE8.mul(swapPairAmount).div(10**uint256(decimalsOfSwapPair));
         }
 
-        require(
-            bondToken.transferFrom(seller, buyer, bondAmount),
-            "fail to transfer bonds"
-        );
+        require(bondToken.transferFrom(seller, buyer, bondAmount), "fail to transfer bonds");
         swapPairToken.safeTransferFrom(buyer, seller, swapPairAmount);
 
-        emit LogExchangeErc20ToBond(
-            buyer,
-            bondID,
-            poolID,
-            bondAmount,
-            swapPairAmount,
-            volumeE8
-        );
+        emit LogExchangeErc20ToBond(buyer, bondID, poolID, bondAmount, swapPairAmount, volumeE8);
     }
 
     /**
@@ -297,8 +246,7 @@ abstract contract BondVsErc20Exchange is BondExchange {
         bytes32 poolID,
         uint256 bondAmount
     ) internal returns (uint256 swapPairAmount) {
-        (address seller, ERC20 swapPairToken, , , , bool isBondSale) =
-            _getVsErc20Pool(poolID);
+        (address seller, ERC20 swapPairToken, , , , bool isBondSale) = _getVsErc20Pool(poolID);
         require(!isBondSale, "This pool is not for buying bond");
 
         (ERC20 bondToken, , , ) = _getBond(_bondMakerContract, bondID);
@@ -306,16 +254,9 @@ abstract contract BondVsErc20Exchange is BondExchange {
 
         uint256 volumeE8;
         {
-            (uint256 rateE8, uint256 bondPriceE8, , ) =
-                _calcRateBondToErc20(bondID, poolID);
-            require(
-                rateE8 > MIN_EXCHANGE_RATE_E8,
-                "exchange rate is too small"
-            );
-            require(
-                rateE8 < MAX_EXCHANGE_RATE_E8,
-                "exchange rate is too large"
-            );
+            (uint256 rateE8, uint256 bondPriceE8, , ) = _calcRateBondToErc20(bondID, poolID);
+            require(rateE8 > MIN_EXCHANGE_RATE_E8, "exchange rate is too small");
+            require(rateE8 < MAX_EXCHANGE_RATE_E8, "exchange rate is too large");
             uint8 decimalsOfSwapPair = swapPairToken.decimals();
             swapPairAmount = _applyDecimalGap(
                 bondAmount.mul(rateE8),
@@ -323,25 +264,13 @@ abstract contract BondVsErc20Exchange is BondExchange {
                 decimalsOfSwapPair
             );
             require(swapPairAmount != 0, "must transfer non-zero token amount");
-            volumeE8 = bondPriceE8.mul(bondAmount).div(
-                10**uint256(DECIMALS_OF_BOND)
-            );
+            volumeE8 = bondPriceE8.mul(bondAmount).div(10**uint256(DECIMALS_OF_BOND));
         }
 
-        require(
-            bondToken.transferFrom(buyer, seller, bondAmount),
-            "fail to transfer bonds"
-        );
+        require(bondToken.transferFrom(buyer, seller, bondAmount), "fail to transfer bonds");
         swapPairToken.safeTransferFrom(seller, buyer, swapPairAmount);
 
-        emit LogExchangeBondToErc20(
-            buyer,
-            bondID,
-            poolID,
-            bondAmount,
-            swapPairAmount,
-            volumeE8
-        );
+        emit LogExchangeBondToErc20(buyer, bondID, poolID, bondAmount, swapPairAmount, volumeE8);
     }
 
     function _calcRateBondToErc20(bytes32 bondID, bytes32 poolID)
@@ -362,16 +291,9 @@ abstract contract BondVsErc20Exchange is BondExchange {
             bool isBondSale
         ) = _getVsErc20Pool(poolID);
         swapPairPriceE8 = _getLatestPrice(erc20Oracle);
-        (bondPriceE8, spreadE8) = _calcBondPriceAndSpread(
-            bondPricer,
-            bondID,
-            feeBaseE4
-        );
+        (bondPriceE8, spreadE8) = _calcBondPriceAndSpread(bondPricer, bondID, feeBaseE4);
         bondPriceE8 = _calcUsdPrice(bondPriceE8);
-        rateE8 = bondPriceE8.mul(10**8).div(
-            swapPairPriceE8,
-            "ERC20 oracle price must be non-zero"
-        );
+        rateE8 = bondPriceE8.mul(10**8).div(swapPairPriceE8, "ERC20 oracle price must be non-zero");
 
         // `spreadE8` is less than 0.15 * 10**8.
         if (isBondSale) {
@@ -408,18 +330,9 @@ abstract contract BondVsErc20Exchange is BondExchange {
         bool isBondSale
     ) internal {
         require(seller != address(0), "the pool ID already exists");
-        require(
-            address(swapPairToken) != address(0),
-            "swapPairToken should be non-zero address"
-        );
-        require(
-            address(swapPairOracle) != address(0),
-            "swapPairOracle should be non-zero address"
-        );
-        require(
-            address(bondPricer) != address(0),
-            "bondPricer should be non-zero address"
-        );
+        require(address(swapPairToken) != address(0), "swapPairToken should be non-zero address");
+        require(address(swapPairOracle) != address(0), "swapPairOracle should be non-zero address");
+        require(address(bondPricer) != address(0), "bondPricer should be non-zero address");
         _vsErc20Pool[poolID] = VsErc20Pool({
             seller: seller,
             swapPairToken: swapPairToken,
@@ -438,15 +351,8 @@ abstract contract BondVsErc20Exchange is BondExchange {
         int16 feeBaseE4,
         bool isBondSale
     ) internal returns (bytes32 poolID) {
-        poolID = _generateVsErc20PoolID(
-            seller,
-            address(swapPairToken),
-            isBondSale
-        );
-        require(
-            _vsErc20Pool[poolID].seller == address(0),
-            "the pool ID already exists"
-        );
+        poolID = _generateVsErc20PoolID(seller, address(swapPairToken), isBondSale);
+        require(_vsErc20Pool[poolID].seller == address(0), "the pool ID already exists");
 
         {
             uint256 price = _getLatestPrice(swapPairOracle);
@@ -467,25 +373,12 @@ abstract contract BondVsErc20Exchange is BondExchange {
         );
 
         if (isBondSale) {
-            emit LogCreateErc20ToBondPool(
-                poolID,
-                seller,
-                address(swapPairToken)
-            );
+            emit LogCreateErc20ToBondPool(poolID, seller, address(swapPairToken));
         } else {
-            emit LogCreateBondToErc20Pool(
-                poolID,
-                seller,
-                address(swapPairToken)
-            );
+            emit LogCreateBondToErc20Pool(poolID, seller, address(swapPairToken));
         }
 
-        emit LogUpdateVsErc20Pool(
-            poolID,
-            address(swapPairOracle),
-            address(bondPricer),
-            feeBaseE4
-        );
+        emit LogUpdateVsErc20Pool(poolID, address(swapPairOracle), address(bondPricer), feeBaseE4);
     }
 
     function _updateVsErc20Pool(
@@ -494,8 +387,7 @@ abstract contract BondVsErc20Exchange is BondExchange {
         BondPricerInterface bondPricer,
         int16 feeBaseE4
     ) internal isExsistentVsErc20Pool(poolID) {
-        (address seller, ERC20 swapPairToken, , , , bool isBondSale) =
-            _getVsErc20Pool(poolID);
+        (address seller, ERC20 swapPairToken, , , , bool isBondSale) = _getVsErc20Pool(poolID);
         _setVsErc20Pool(
             poolID,
             seller,
@@ -506,18 +398,10 @@ abstract contract BondVsErc20Exchange is BondExchange {
             isBondSale
         );
 
-        emit LogUpdateVsErc20Pool(
-            poolID,
-            address(swapPairOracle),
-            address(bondPricer),
-            feeBaseE4
-        );
+        emit LogUpdateVsErc20Pool(poolID, address(swapPairOracle), address(bondPricer), feeBaseE4);
     }
 
-    function _deleteVsErc20Pool(bytes32 poolID)
-        internal
-        isExsistentVsErc20Pool(poolID)
-    {
+    function _deleteVsErc20Pool(bytes32 poolID) internal isExsistentVsErc20Pool(poolID) {
         delete _vsErc20Pool[poolID];
 
         emit LogDeleteVsErc20Pool(poolID);
