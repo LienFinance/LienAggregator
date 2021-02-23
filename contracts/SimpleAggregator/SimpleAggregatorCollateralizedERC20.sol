@@ -10,7 +10,7 @@ contract SimpleAggregatorCollateralizedERC20 is SimpleAggregator {
     using SafeMath for uint256;
     using SafeERC20 for ERC20;
     // AUDIT-FIX: SAE-01
-    ERC20 collateralToken;
+    ERC20 internal immutable collateralToken;
     // AUDIT-FIX: SAE-02
     int16 internal immutable decimalGap;
     // AUDIT-FIX: SAE-03
@@ -23,7 +23,7 @@ contract SimpleAggregatorCollateralizedERC20 is SimpleAggregator {
         ERC20 _rewardToken,
         BondRegistratorInterface _registrator,
         ExchangeInterface exchangeAddress,
-        ERC20 _collateralAddress,
+        ERC20 _collateralToken,
         VolatilityOracleInterface _volOracle,
         uint64 _priceUnit,
         uint64 _firstRewardRate,
@@ -42,32 +42,41 @@ contract SimpleAggregatorCollateralizedERC20 is SimpleAggregator {
             _volOracle
         )
     {
-        BondMakerInterface _bondMaker = exchangeAddress.bondMakerAddress();
-        collateralToken = _collateralAddress;
-        collateralToken.approve(address(_bondMaker), uint256(-1));
-        collateralToken.approve(address(exchangeAddress), uint256(-1));
-        _setPool(_bondMaker, _volOracle, _pricer, _oracle, _collateralAddress, _reverseOracle);
-        decimalGap = int16(collateralToken.decimals()) - decimals;
-        reserveERC20 = new ReserveERC20(collateralToken);
+        collateralToken = _collateralToken;
+        _setPool(
+            strategy,
+            exchangeAddress,
+            _volOracle,
+            _pricer,
+            _oracle,
+            _collateralToken,
+            _reverseOracle
+        );
+        decimalGap = int16(_collateralToken.decimals()) - decimals;
+        reserveERC20 = new ReserveERC20(_collateralToken);
         // AUDIT-FIX: SAE-04
-        require(address(_collateralAddress) != address(0), "collateralAddress cannot be zero");
+        require(address(_collateralToken) != address(0), "collateralAddress cannot be zero");
     }
 
     function _setPool(
-        BondMakerInterface _bondMaker,
+        SimpleStrategyInterface _strategy,
+        ExchangeInterface _exchange,
         VolatilityOracleInterface _volOracle,
         BondPricerInterface _pricer,
         LatestPriceOracleInterface _oracle,
-        ERC20 _collateralAddress,
+        ERC20 _collateralToken,
         bool _reverseOracle
     ) internal {
-        int16 feeBaseE4 = STRATEGY.getCurrentSpread(msg.sender, address(_oracle), _reverseOracle);
+        BondMakerInterface _bondMaker = _exchange.bondMakerAddress();
+        _collateralToken.approve(address(_bondMaker), uint256(-1));
+        _collateralToken.approve(address(_exchange), uint256(-1));
+        int16 feeBaseE4 = _strategy.getCurrentSpread(msg.sender, address(_oracle), _reverseOracle);
         currentFeeBase = feeBaseE4;
-        DOTC.createVsBondPool(_bondMaker, _volOracle, _pricer, _pricer, feeBaseE4);
+        _exchange.createVsBondPool(_bondMaker, _volOracle, _pricer, _pricer, feeBaseE4);
 
-        DOTC.createVsErc20Pool(ERC20(_collateralAddress), _oracle, _pricer, feeBaseE4, true);
+        _exchange.createVsErc20Pool(ERC20(_collateralToken), _oracle, _pricer, feeBaseE4, true);
 
-        DOTC.createVsErc20Pool(ERC20(_collateralAddress), _oracle, _pricer, feeBaseE4, false);
+        _exchange.createVsErc20Pool(ERC20(_collateralToken), _oracle, _pricer, feeBaseE4, false);
     }
 
     function changeSpread() public override {

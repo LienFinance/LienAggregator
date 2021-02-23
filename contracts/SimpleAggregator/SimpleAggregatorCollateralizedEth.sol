@@ -38,21 +38,13 @@ contract SimpleAggregatorCollateralizedEth is SimpleAggregator, TransferETH {
         )
     {
         BondMakerInterface _bondMaker = exchangeAddress.bondMakerAddress();
-        _setPool(_bondMaker, _volOracle, _pricer, _ethOracle);
-        reserveEth = new ReserveEth();
-    }
-
-    function _setPool(
-        BondMakerInterface _bondMaker,
-        VolatilityOracleInterface _volOracle,
-        BondPricerInterface _pricer,
-        LatestPriceOracleInterface _ethOracle
-    ) internal {
-        int16 feeBaseE4 = STRATEGY.getCurrentSpread(msg.sender, address(_ethOracle), false);
+        int16 feeBaseE4 = strategy.getCurrentSpread(msg.sender, address(_ethOracle), false);
         currentFeeBase = feeBaseE4;
-        DOTC.createVsBondPool(_bondMaker, _volOracle, _pricer, _pricer, feeBaseE4);
-        DOTC.createVsEthPool(_ethOracle, _pricer, feeBaseE4, true);
-        DOTC.createVsEthPool(_ethOracle, _pricer, feeBaseE4, false);
+        exchangeAddress.createVsBondPool(_bondMaker, _volOracle, _pricer, _pricer, feeBaseE4);
+        exchangeAddress.createVsEthPool(_ethOracle, _pricer, feeBaseE4, true);
+        exchangeAddress.createVsEthPool(_ethOracle, _pricer, feeBaseE4, false);
+
+        reserveEth = new ReserveEth();
     }
 
     function changeSpread() public override {
