@@ -4,6 +4,8 @@ import "./SimpleAggregatorCollateralizedEth.sol";
 pragma experimental ABIEncoderV2;
 
 contract testSimpleAggregatorCollateralizedEth is SimpleAggregatorCollateralizedEth {
+    event Number(uint256 num);
+
     constructor(
         LatestPriceOracleInterface _ethOracle,
         BondPricerWithAcceptableMaturity _pricer,
@@ -49,10 +51,7 @@ contract testSimpleAggregatorCollateralizedEth is SimpleAggregatorCollateralized
         address to,
         uint256 amount
     ) external {
-        require(
-            IERC20(tokenAddress).transfer(to, amount),
-            "Test Contract: Insufficient Balance Of Bond Token"
-        );
+        require(IERC20(tokenAddress).transfer(to, amount), "Test Contract");
     }
 
     function addToken(address user, uint256 amount) public {

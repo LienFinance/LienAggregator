@@ -49,9 +49,9 @@ abstract contract SimpleAggregator is SimpleAggregatorInterface, UseVolatilityOr
 
     uint256 constant INFINITY = uint256(-1);
     uint256 constant COOLTIME = 3600 * 24 * 3;
-    // AUDIT-FIX: SAR-03 Not-Fixed: strategy and dotc are used in the constractor
-    SimpleStrategyInterface internal STRATEGY;
-    ExchangeInterface internal DOTC;
+    // AUDIT-FIX: SAR-03
+    SimpleStrategyInterface internal immutable STRATEGY;
+    ExchangeInterface internal immutable DOTC;
     ERC20 internal immutable REWARD_TOKEN;
     BondPricerWithAcceptableMaturity internal immutable BOND_PRICER;
     LatestPriceOracleInterface internal immutable ORACLE;
@@ -117,34 +117,24 @@ abstract contract SimpleAggregator is SimpleAggregatorInterface, UseVolatilityOr
     event UpdateMaturity(uint64 indexed term, int16 newFeeBase, uint64 maturity);
 
     event AddLiquidity(address indexed user, uint256 tokenAmount);
-    event Number(uint256 num);
 
     modifier isActive() {
-        require(
-            block.timestamp <= termInfo[currentTerm].maturity,
-            "Error: Aggregator is not active"
-        );
+        require(block.timestamp <= termInfo[currentTerm].maturity, "Aggregator is not active");
         _;
     }
 
     modifier endCoolTime() {
-        require(
-            block.timestamp > lastTrancheTime + COOLTIME,
-            "Error: In the Cool Time of TrancheBonds"
-        );
+        require(block.timestamp > lastTrancheTime + COOLTIME, "In the Cool Time");
         _;
     }
 
     modifier afterMaturity() {
-        require(
-            block.timestamp > termInfo[currentTerm].maturity,
-            "Error: This function should be executed after maturity"
-        );
+        require(block.timestamp > termInfo[currentTerm].maturity, "Not Matured");
         _;
     }
 
     modifier isRunning() {
-        require(currentTerm != 0, "Error: This aggregator is not running");
+        require(currentTerm != 0, "Not running");
         _;
     }
 
@@ -155,7 +145,7 @@ abstract contract SimpleAggregator is SimpleAggregatorInterface, UseVolatilityOr
     }
 
     modifier onlyBonusProvider() {
-        require(msg.sender == OWNER, "This function is restricted to the reward token provider");
+        require(msg.sender == OWNER, "Restricted to the reward provider");
         _;
     }
 
@@ -188,7 +178,7 @@ abstract contract SimpleAggregator is SimpleAggregatorInterface, UseVolatilityOr
         // AUDIT-FIX: SAR-27
         require(
             _firstRewardRate >= 10**decimals && _firstRewardRate <= 1000000 * 10**decimals,
-            "Out of valid reward rate range"
+            "Out of valid range"
         );
     }
 
@@ -204,10 +194,7 @@ abstract contract SimpleAggregator is SimpleAggregatorInterface, UseVolatilityOr
         uint256 _currentTerm = currentTerm;
         // AUDIT-FIX: SAR-07
         uint256 currentUnremoved = totalUnremovedTokens[_currentTerm];
-        require(
-            liquidationData[_currentTerm].isLiquidated || _currentTerm == 0,
-            "Error: This function should be executed after expired"
-        );
+        require(liquidationData[_currentTerm].isLiquidated || _currentTerm == 0, "Not expired yet");
         // AUDIT-FIX: SAR-05
         uint256 totalShare = shareData[_currentTerm].totalShare;
         if (totalShare > 0) {
@@ -263,7 +250,7 @@ abstract contract SimpleAggregator is SimpleAggregatorInterface, UseVolatilityOr
         // AUDIT-FIX: SAR-08
         require(
             rewardRate >= 10**decimals && rewardRate <= 1000000 * 10**decimals,
-            "Out of valid reward rate range"
+            "Out of valid range"
         );
         totalRewards.push(TotalReward(currentTerm.toUint64() + 1, rewardRate));
     }
@@ -394,7 +381,7 @@ abstract contract SimpleAggregator is SimpleAggregatorInterface, UseVolatilityOr
         uint32 _startBondGroupId = startBondGroupId;
         // AUDIT-FIX: SAR-13
         uint64 previousMaturity = termInfo[currentTerm - 1].maturity;
-        require(previousMaturity != 0, "Error: Maturity shoudld exist");
+        require(previousMaturity != 0, "Maturity shoudld exist");
         while (true) {
             (, uint256 maturity) = BONDMAKER.getBondGroup(_startBondGroupId);
             if (maturity >= previousMaturity) {
@@ -412,7 +399,7 @@ abstract contract SimpleAggregator is SimpleAggregatorInterface, UseVolatilityOr
     function liquidateBonds() public override afterMaturity {
         // AUDIT-FIX: SAR-14
         uint256 _currentTerm = currentTerm;
-        require(!liquidationData[_currentTerm].isLiquidated, "Error: All bonds have been expired");
+        require(!liquidationData[_currentTerm].isLiquidated, "All bonds expired");
         if (liquidationData[_currentTerm].endBondGroupId == 0) {
             liquidationData[_currentTerm].endBondGroupId = BONDMAKER.nextBondGroupID().toUint32();
         }
@@ -506,7 +493,7 @@ abstract contract SimpleAggregator is SimpleAggregatorInterface, UseVolatilityOr
             // Burn bond and get collateral asset
             require(
                 BONDMAKER.reverseBondGroupToCollateral(reverseBonds[0], reverseBonds[1]),
-                "Error: Could not reverse LBTs to collateral"
+                "Could not reverse LBTs"
             );
         }
         lastTrancheTime = block.timestamp.toUint64();
