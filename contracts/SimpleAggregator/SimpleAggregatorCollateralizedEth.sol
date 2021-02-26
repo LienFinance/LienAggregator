@@ -9,7 +9,6 @@ import "../BondToken_and_GDOTC/util/TransferETH.sol";
 
 contract SimpleAggregatorCollateralizedEth is SimpleAggregator, TransferETH {
     using SafeMath for uint256;
-    // AUDIT-FIX: SAC-01
     ReserveEth internal immutable reserveEth;
     uint16 internal constant DECIMAL_GAP = 10;
 
@@ -48,7 +47,6 @@ contract SimpleAggregatorCollateralizedEth is SimpleAggregator, TransferETH {
     }
 
     function changeSpread() public override {
-        // AUDIT-FIX: SAC-04
         int16 _currentFeeBase = STRATEGY.getCurrentSpread(OWNER, address(ORACLE), false);
 
         require(_currentFeeBase <= 1000 && _currentFeeBase >= 5, "Invalid feebase");
@@ -81,7 +79,6 @@ contract SimpleAggregatorCollateralizedEth is SimpleAggregator, TransferETH {
             uint256(totalUnremovedTokens[currentTerm]).mul(collateralPerTokenE8).div(10**decimals),
             false
         );
-        // AUDIT-FIX: SAC-02
         _transferETH(address(reserveEth), amount);
     }
 
@@ -89,7 +86,6 @@ contract SimpleAggregatorCollateralizedEth is SimpleAggregator, TransferETH {
         BondMakerCollateralizedEthInterface bm = BondMakerCollateralizedEthInterface(
             address(BONDMAKER)
         );
-        // AUDIT-FIX: SAC-03
         bm.issueNewBonds{value: amount.mul(10**DECIMAL_GAP).mul(1002).div(1000)}(bondgroupID);
     }
 

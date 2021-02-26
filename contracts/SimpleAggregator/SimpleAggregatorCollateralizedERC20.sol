@@ -9,11 +9,8 @@ import "./ReserveERC20.sol";
 contract SimpleAggregatorCollateralizedERC20 is SimpleAggregator {
     using SafeMath for uint256;
     using SafeERC20 for ERC20;
-    // AUDIT-FIX: SAE-01
     ERC20 internal immutable collateralToken;
-    // AUDIT-FIX: SAE-02
     int16 internal immutable decimalGap;
-    // AUDIT-FIX: SAE-03
     ReserveERC20 internal immutable reserveERC20;
 
     constructor(
@@ -54,7 +51,6 @@ contract SimpleAggregatorCollateralizedERC20 is SimpleAggregator {
         );
         decimalGap = int16(_collateralToken.decimals()) - decimals;
         reserveERC20 = new ReserveERC20(_collateralToken);
-        // AUDIT-FIX: SAE-04
         require(address(_collateralToken) != address(0), "collateralAddress cannot be zero");
     }
 
@@ -80,7 +76,6 @@ contract SimpleAggregatorCollateralizedERC20 is SimpleAggregator {
     }
 
     function changeSpread() public override {
-        // AUDIT-FIX: SAE-05
         int16 _currentFeeBase = STRATEGY.getCurrentSpread(OWNER, address(ORACLE), REVERSE_ORACLE);
 
         require(_currentFeeBase < 1000 && _currentFeeBase > 5, "Invalid feebase");

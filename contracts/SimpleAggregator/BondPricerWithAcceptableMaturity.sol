@@ -9,7 +9,6 @@ import "../BondToken_and_GDOTC/util/Time.sol";
 contract BondPricerWithAcceptableMaturity is CustomGeneralizedPricing, Ownable, Time {
     using SafeMath for uint256;
 
-    // AUDIT-FIX: BPW-02 Not-Fixed:
     uint256 internal _acceptableMaturity;
 
     event LogUpdateAcceptableMaturity(uint256 acceptableMaturity);
@@ -101,12 +100,10 @@ contract BondPricerWithAcceptableMaturity is CustomGeneralizedPricing, Ownable, 
         int256 ethVolatilityE8,
         int256 untilMaturity
     ) internal view {
-        // AUDIT-FIX: BPW-03
         require(
             etherPriceE8 > 0 && etherPriceE8 < 100000 * 10**8,
             "ETH price should be between $0 and $100000"
         );
-        // AUDIT-FIX: BPW-04
         require(
             ethVolatilityE8 > 0 && ethVolatilityE8 < 10 * 10**8,
             "ETH volatility should be between 0% and 1000%"
