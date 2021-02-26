@@ -4,7 +4,6 @@ import "./StrategyForSimpleAggregator.sol";
 
 contract StrategyForSimpleAggregatorETH is StrategyForSimpleAggregator {
     using SafeMath for uint256;
-    // AUDIT-FIX: SFA-01
     ExchangeInterface internal immutable exchange;
 
     constructor(
@@ -13,7 +12,6 @@ contract StrategyForSimpleAggregatorETH is StrategyForSimpleAggregator {
         uint256 termCF
     ) StrategyForSimpleAggregator(termInterval, termCF) {
         exchange = _exchange;
-        // AUDIT-FIX: SFA-02
         require(address(_exchange) != address(0), "_exchange cannot be zero");
     }
 

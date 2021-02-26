@@ -6,7 +6,6 @@ import "../Interfaces/ExchangeInterface.sol";
 import "../BondToken_and_GDOTC/bondMaker/BondMakerInterface.sol";
 import "../Interfaces/SimpleAggragatorInterface.sol";
 import "../BondToken_and_GDOTC/util/Polyline.sol";
-// AUDIT-FIX: SFS-01 Not-Fixed: cannot fix
 import "../../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../../node_modules/@openzeppelin/contracts/utils/SafeCast.sol";
 
@@ -19,12 +18,9 @@ contract StrategyForSimpleAggregator is SimpleStrategyInterface, Polyline {
         int32 downwardDifference;
     }
     uint256 constant WEEK_LENGTH = 3;
-    // AUDIT-FIX: SFS-04 Not-Fixed:
     mapping(bytes32 => address[]) public aggregators;
     mapping(bytes32 => FeeInfo) public feeBases;
-    // AUDIT-FIX: SFS-02
     uint256 internal immutable TERM_INTERVAL;
-    // AUDIT-FIX: SFS-03
     uint256 internal immutable TERM_CORRECTION_FACTOR;
     int16 constant INITIAL_FEEBASE = 250;
 
@@ -71,7 +67,6 @@ contract StrategyForSimpleAggregator is SimpleStrategyInterface, Polyline {
             (issueAmount, ) = _getLBTStrikePrice(bondMaker, bondGroupList[i], isReversedOracle);
             // If Call option strike price is different from current price by priceUnit * 5,
             // this bond group becomes target of burn.
-            // AUDIT-FIX: SFS-05
             if ((issueAmount > price + priceUnit * 5 || issueAmount < price.sub(priceUnit * 5))) {
                 uint256 balance = _getMinBondAmount(bondMaker, bondGroupList[i], aggregatorAddress);
                 // If `balance` is larger than that of current target bond group,
@@ -86,7 +81,6 @@ contract StrategyForSimpleAggregator is SimpleStrategyInterface, Polyline {
             uint256 balance = _getMinBondAmount(bondMaker, issueBondGroupId, aggregatorAddress);
             baseAmount = baseAmount + (IDAndAmountOfBurn[1] / 5);
             if (balance < baseAmount && issueBondGroupId != 0) {
-                // AUDIT-FIX: SFS-06
                 issueAmount = baseAmount - balance;
             } else {
                 issueAmount = 0;
@@ -135,22 +129,13 @@ contract StrategyForSimpleAggregator is SimpleStrategyInterface, Polyline {
         uint256 nextCollateralPerToken,
         int32 upwardDifference,
         int32 downwardDifference
-    )
-        internal
-        pure
-        returns (
-            // AUDIT-FIX: SFS-09
-            int16
-        )
-    {
-        // AUDIT-FIX: SFS-07
+    ) internal pure returns (int16) {
         if (
             nextCollateralPerToken.mul(100).div(105) > currentCollateralPerToken &&
             currentFeeBase > downwardDifference
         ) {
             return int16(currentFeeBase - downwardDifference);
         } else if (nextCollateralPerToken.mul(105).div(100) < currentCollateralPerToken) {
-            // AUDIT-FIX: SFS-08 Not-Fixed: Unnecessary modification: current fee base is under 1000
             return int16(currentFeeBase + upwardDifference);
         }
         return currentFeeBase;
@@ -169,7 +154,6 @@ contract StrategyForSimpleAggregator is SimpleStrategyInterface, Polyline {
      * @notice Register addresses of aggregators for each type of price feed
      * @notice Aggregator owner should register aggregators for fee base registration
      */
-    // AUDIT-FIX: SFS-10
     function registerAggregators(
         address oracleAddress,
         bool isReversedOracle,
@@ -220,7 +204,6 @@ contract StrategyForSimpleAggregator is SimpleStrategyInterface, Polyline {
         uint64 priceUnit,
         bool isReversedOracle
     ) external pure override returns (uint256 strikePrice) {
-        // AUDIT-FIX: SFS-11
         if (isReversedOracle) {
             strikePrice = _getReversedValue(
                 calcRoundPrice(currentPriceE8 * 2, priceUnit, 1),
